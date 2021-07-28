@@ -38,6 +38,7 @@ You can then edit the text shown for that specific language code.
 ```
 
 Once this is set up, players will see messages in their preferred language if it exists. 
+
 Some maps might require multiple playthroughs to be fully learned.
 
 ### ConVars
