@@ -30,7 +30,7 @@ You can then edit the text shown for that specific language code.
 {
 	"edf566344eb9f2cb892e073e70c70181"
 	{
-		"en"		"Destroy the puppet"
+		"en"		"Destroy the puppet please it's scary"
 		"es"		"Destruye la marioneta"
 		"ko"		"꼭두각시를 파괴"
 	}
