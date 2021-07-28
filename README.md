@@ -64,6 +64,7 @@ Configs are saved to `cfg/sourcemod/plugin.nmrih-map-translator.cfg` (Autogenera
 
 ### Notes
 
+- If you manually edited .nmo files in the past you've effectively corrupted them and you need to restore the originals before attempting to run this plugin.
 - Linux support is included but untested.
 - This plugin is incompatible with [Multilingual Objectives](https://forums.alliedmods.net/showthread.php?p=2678257) and [Multilingual Objective Beta](https://forums.alliedmods.net/showthread.php?p=2305894).
 
