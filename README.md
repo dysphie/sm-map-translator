@@ -1,7 +1,7 @@
 # [NMRiH] Map Translator
 
 
-Allows you to translate maps via automatic configs. Supports:
+Allows you to translate maps via auto-generated configs. Supports:
   - Objective messages
  
     ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png)
