@@ -20,7 +20,7 @@ public Plugin myinfo =
 {
 	name        = "[NMRiH] Map Translator",
 	author      = "Dysphie",
-	description = "",
+	description = "Translate maps via auto-generated configs",
 	version     = "0.1.0",
 	url         = ""
 };
