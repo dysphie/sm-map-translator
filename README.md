@@ -55,3 +55,9 @@ Some maps might require multiple playthroughs to be fully learned.
 
 - `mt_bulk_learn_nmo` 
   - Forces the plugin to generate a translation file for every map on the server. The resulting files will only include objective messages. To learn game text and HUD hints the maps must be actually loaded.
+
+
+### Notes
+
+This plugin is incompatible with [Multilingual Objectives](https://forums.alliedmods.net/showthread.php?p=2678257) and [Multilingual Objective Beta](https://forums.alliedmods.net/showthread.php?p=2305894)
+
