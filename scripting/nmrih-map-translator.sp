@@ -165,7 +165,7 @@ public void OnPluginStart()
 	cvIgnoreNumerical = CreateConVar("mt_ignore_numerical", "1", 
 		"Don't translate or learn fully numerical messages such as codes, countdowns, etc.");
 
-	cvTargetLangs = CreateConVar("mt_autolearn_langs", "en es ko",
+	cvTargetLangs = CreateConVar("mt_autolearn_langs", "",
 		"Space-separated list of language entries to include in auto generated translation files");
 
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
