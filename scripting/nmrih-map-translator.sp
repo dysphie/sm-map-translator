@@ -274,7 +274,7 @@ public void OnMapEnd()
 
 void LoadDetours()
 {
-	GameData gamedata = new GameData("map-translations.games");
+	GameData gamedata = new GameData("map-translator.games");
 	if (!gamedata)
 		SetFailState("Failed to load gamedata");
 
