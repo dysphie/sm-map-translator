@@ -2,19 +2,14 @@
 
 
 Allows you to translate maps via auto-generated configs. Supports:
-  - Objective messages
- 
-    ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png)
-  - Game text 
 
-    ![image](https://user-images.githubusercontent.com/11559683/127247367-37e055ee-9c63-42c8-948d-ec4aeae1166f.png)
-
-  - HUD hints 
-
-    ![image](https://user-images.githubusercontent.com/11559683/127247508-0e1fd033-9414-47f8-879c-d5bbd6336fec.png)
+| Objectives | Game text | HUD Hints |
+|------------|-----------|-----------|
+| ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png)        | ![image](https://user-images.githubusercontent.com/11559683/127247367-37e055ee-9c63-42c8-948d-ec4aeae1166f.png)       | ![image](https://user-images.githubusercontent.com/11559683/127247508-0e1fd033-9414-47f8-879c-d5bbd6336fec.png)       |
 
 
-The plugin will learn maps as they're played, and dump translatable strings to `translations/_maps/<mapname>.txt`. Example:
+
+The plugin will learn maps as they're played, and dump translatable content to `translations/_maps/<mapname>.txt`. Example:
 
 ```cpp
 "Phrases"
@@ -28,8 +23,21 @@ The plugin will learn maps as they're played, and dump translatable strings to `
 }
 ```
 
-You can then edit the entries to change the text shown for that specific language.
+You can then edit the text shown for that specific language code.
 
+```cpp
+"Phrases"
+{
+	"edf566344eb9f2cb892e073e70c70181"
+	{
+		"en"		"Destroy the puppet"
+		"es"		"Destruye la marioneta"
+		"ko"		"꼭두각시를 파괴"
+	}
+}
+```
+
+Once this is set up, players will see messages in their preferred language. 
 Some maps might require multiple playthroughs to be fully learned.
 
 ### ConVars
