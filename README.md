@@ -1,7 +1,7 @@
 # [NMRiH] Map Translator
 
 
-Allows you to translate maps via auto-generated configs. Supports:
+Allows you to translate maps on a per-player basis via auto-generated configs. Supports:
 
 | Objectives | Game text | HUD Hints |
 |------------|-----------|-----------|
