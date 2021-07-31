@@ -21,7 +21,7 @@ public Plugin myinfo =
 	name        = "[NMRiH] Map Translator",
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
-	version     = "0.1.0",
+	version     = "0.1.1",
 	url         = ""
 };
 
@@ -56,7 +56,7 @@ bool MO_LoadTranslations(const char[] path)
 	{
 		char md5[MAX_MD5_LEN];
 		kv.GetSectionName(md5, sizeof(md5));
-		StrToLower(md5, md5, sizeof(md5));
+		StrToLower(md5);
 
 		// PrintToServer("Section: \"%s\"", md5);
 
@@ -71,7 +71,7 @@ bool MO_LoadTranslations(const char[] path)
 		{
 			char code[MAX_LANGCODE_LEN], phrase[MAX_USERMSG_LEN];
 			kv.GetSectionName(code, sizeof(code));
-			StrToLower(code, code, sizeof(code));
+			StrToLower(code);
 			kv.GetString(NULL_STRING, phrase, sizeof(phrase));
 			langs.SetString(code, phrase);
 
@@ -94,27 +94,16 @@ bool MO_TranslationPhraseExists(const char[] md5)
 
 bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxlen)
 {
-	bool result;
-
-	static char md5lower[MAX_MD5_LEN];
-	StrToLower(md5, md5lower, sizeof(md5lower));
-
 	StringMap langs;
-	if (!translations.GetValue(md5lower, langs))
-	{
-		result = false;
-	}
-	else
-	{
-		if (langs.GetString(clientLang[client], buffer, maxlen))
-			return true;
+	if (!translations.GetValue(md5, langs))
+		return false;
+	
+	if (langs.GetString(clientLang[client], buffer, maxlen))
+		return true;
 
-		char fallback[MAX_LANGCODE_LEN];
-		cvDefaultLang.GetString(fallback, sizeof(fallback));
-		return langs.GetString(fallback, buffer, maxlen);
-	}
-
-	return result;
+	static char fallback[MAX_LANGCODE_LEN];
+	cvDefaultLang.GetString(fallback, sizeof(fallback));
+	return langs.GetString(fallback, buffer, maxlen);
 }
 
 public void OnConfigsExecuted()
@@ -587,8 +576,7 @@ void Translate_KeyHintText(DataPack data)
 	data.ReadString(md5, sizeof(md5));
 
 	char translated[MAX_KEYHINT_LEN];
-	bool didTranslate;
-
+	
 	int playersNum = data.ReadCell();
 	for (int i; i < playersNum; i++)
 	{
@@ -596,7 +584,7 @@ void Translate_KeyHintText(DataPack data)
 		if (!client)
 			continue;
 
-		didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
+		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
 
 		Handle msg = StartMessageOne("KeyHintText", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 		BfWrite bf = UserMessageToBfWrite(msg);
@@ -620,8 +608,6 @@ void Translate_ObjectiveNotify(DataPack data)
 
 	int playersNum = data.ReadCell();
 
-	bool didTranslate;
-
 	for (int i; i < playersNum; i++)
 	{
 		int client = GetClientFromSerial(data.ReadCell());
@@ -629,7 +615,7 @@ void Translate_ObjectiveNotify(DataPack data)
 			continue;
 
 		char translated[PLATFORM_MAX_PATH];
-		didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
+		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
 
 		Handle msg = StartMessageOne("ObjectiveNotify", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 		BfWrite bf = UserMessageToBfWrite(msg);
@@ -724,13 +710,12 @@ void ReadFileString2(File file, char[] buffer, int maxlen)
 	SeekFileTillChar(file, '\0');
 }
 
-void StrToLower(const char[] src, char[] dest, int maxlen)
+void StrToLower(char[] str)
 {
 	int i;
-	while (src[i] && i < maxlen)
+	while (str[i])
 	{
-		dest[i] = CharToLower(src[i]);
+		str[i] = CharToLower(str[i]);
 		i++;
 	}
-	dest[i] = '\0';	
 }
