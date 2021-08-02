@@ -21,7 +21,7 @@ public Plugin myinfo =
 	name        = "[NMRiH] Map Translator",
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
-	version     = "0.1.1",
+	version     = "0.2.1",
 	url         = ""
 };
 
@@ -329,9 +329,6 @@ int LearnObjectives(const char[] mapName, ArrayStack stack)
 
 	// skip antiObjectivesCount and extractionCount
 	f.Seek(8, SEEK_CUR); 
-
-	// Skip objective name
-	SeekFileTillChar(f, '\0');
 
 	for (int o; o < objectivesCount; o++)
 	{
