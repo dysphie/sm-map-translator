@@ -61,6 +61,7 @@ Configs are saved to `cfg/sourcemod/plugin.nmrih-map-translator.cfg` (Autogenera
 
 ### Requirements
 - Sourcemod 1.11 Build 6646 or higher
+- [DHooks2](https://github.com/peace-maker/DHooks2/releases)
 
 ### Notes
 
