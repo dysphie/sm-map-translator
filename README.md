@@ -1,7 +1,9 @@
 # [NMRiH] Map Translator
 
 
-Allows you to translate maps on a per-player basis via auto-generated configs. Supports:
+Provides a way to translate maps via translation files, allowing players to see messages in their preferred language. 
+
+The following are supported:
 
 | Objectives | Game text | HUD Hints |
 |------------|-----------|-----------|
@@ -36,8 +38,6 @@ You can then edit the text shown for that specific language code.
 	}
 }
 ```
-
-Once this is set up, players will see messages in their preferred language if it exists. 
 
 Some maps might require multiple playthroughs to be fully learned.
 
