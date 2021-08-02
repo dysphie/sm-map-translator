@@ -57,7 +57,7 @@ Configs are saved to `cfg/sourcemod/plugin.nmrih-map-translator.cfg` (Autogenera
 ### Commands
 
 - `mt_bulk_learn_nmo` 
-  - Forces the plugin to generate a translation file for every map on the server. The resulting files will only include objective messages, as game text and HUD hints require the map actually be loaded. This will NOT override existing translations. If a map already has a translation file, any new finds will be appended to the end. 
+  - Learn objective messages for every map on the server without loading them in. This will NOT override existing translation entries, it will only append new ones. In other words, you're free to run this as many times as you want.
 
 ### Requirements
 - Sourcemod 1.11 Build 6646 or higher
