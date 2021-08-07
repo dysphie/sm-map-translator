@@ -21,7 +21,7 @@ public Plugin myinfo =
 	name        = "[NMRiH] Map Translator",
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
-	version     = "0.2.1",
+	version     = "0.2.2",
 	url         = ""
 };
 
@@ -46,6 +46,7 @@ void MO_UnloadTranslations()
 bool MO_LoadTranslations(const char[] path)
 {
 	KeyValues kv = new KeyValues("Phrases");
+	kv.SetEscapeSequences(true);
 	if (!kv.ImportFromFile(path) || !kv.GotoFirstSubKey())
 	{
 		delete kv;
@@ -399,6 +400,7 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 	ExplodeString(targetLangs, " ", langCodes, sizeof(langCodes), sizeof(langCodes[]));
 
 	KeyValues kv = new KeyValues("Phrases");
+	kv.SetEscapeSequences(true);
 	kv.ImportFromFile(path);
 
 	char buffer[MAX_USERMSG_LEN], md5[MAX_MD5_LEN];
