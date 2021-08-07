@@ -295,7 +295,7 @@ int LearnTextEntity(const char[] classname, ArrayStack stack)
 	int e = -1;
 	while ((e = FindEntityByClassname(e, classname)) != -1)
 	{
-		if (GetEntPropString(e, Prop_Data, "m_iszMessage", text, sizeof(text)))
+		if (GetEntityHammerID(e) && GetEntPropString(e, Prop_Data, "m_iszMessage", text, sizeof(text)))
 		{
 			stack.PushString(text);
 			count++;
