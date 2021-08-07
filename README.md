@@ -66,7 +66,11 @@ Configs are saved to `cfg/sourcemod/plugin.nmrih-map-translator.cfg` (Autogenera
 ### Notes
 
 
-- If you want to use double quotes in a translation phrase, you must prefix them with `\`, e.g. `"en" "Destroy \"Robert\" the puppet"`
+- To use double quotes in a translation phrase, you must prefix it with `\`.
+	- Example: `"en" "Destroy \"Robert\" the puppet"`
+- You can use `\n` to insert line breaks.
+	- Example: `"en" "Ported by\nPorkchops4Lunch"`
+
 - Linux support is included but untested.
 - This plugin is incompatible with [Multilingual Objectives](https://forums.alliedmods.net/showthread.php?p=2678257) and [Multilingual Objective Beta](https://forums.alliedmods.net/showthread.php?p=2305894).
 
