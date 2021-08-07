@@ -27,7 +27,7 @@
 				"signature"	"CGameText::Display"
 				"callconv"	"thiscall"
 				"return"	"void"
-				"this"		"ignore"
+				"this"		"entity"
 				"arguments"
 				{
 					"pActivator"
@@ -41,7 +41,7 @@
 				"signature"  "CEnvHudHint::InputShowHudHint"
 				"callconv"  "thiscall"
 				"return"  "void"
-				"this"  "ignore"
+				"this"  "entity"
 				"arguments"
 				{
 					"inputdata"

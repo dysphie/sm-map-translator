@@ -21,14 +21,14 @@ public Plugin myinfo =
 	name        = "[NMRiH] Map Translator",
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
-	version     = "0.2.2",
+	version     = "0.2.3",
 	url         = ""
 };
 
-
 ArrayStack exportQueue;
-bool inInputShowHudHint; // FIXME
-bool inGameTextDisplay; // FIXME
+
+int activeEnvHint = -1;
+int activeGameText = -1;
 
 ConVar cvIgnoreNumerical;
 ConVar cvTargetLangs;
@@ -366,24 +366,24 @@ int LearnObjectives(const char[] mapName, ArrayStack stack)
 	return objectivesCount;
 }
 
-public MRESReturn Detour_GameTextDisplayPre()
+public MRESReturn Detour_GameTextDisplayPre(int gametext)
 {
-	inGameTextDisplay = true;
+	activeGameText = gametext;
 }
 
-public MRESReturn Detour_GameTextDisplayPost()
+public MRESReturn Detour_GameTextDisplayPost(int gametext)
 {
-	inGameTextDisplay = false;
+	activeGameText = -1;
 }
 
-public MRESReturn Detour_HudHintShowPre()
+public MRESReturn Detour_HudHintShowPre(int envhint)
 {
-	inInputShowHudHint = true;
+	activeEnvHint = envhint;
 }
 
-public MRESReturn Detour_HudHintShowPost()
+public MRESReturn Detour_HudHintShowPost(int envhint)
 {
-	inInputShowHudHint = false;
+	activeEnvHint = -1;
 }
 
 bool IsNumericalString(const char[] str)
@@ -439,8 +439,11 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 
 public Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
-	if (!inInputShowHudHint)
+	if (activeEnvHint == -1 || !GetEntityHammerID(activeEnvHint))
+	{
+		// PrintToServer("Ignoring env_hudhint %d, no hammer ID", activeEnvHint);
 		return Plugin_Continue;
+	}
 
 	int dunnoByte = bf.ReadByte(); // I dunno..
 	
@@ -501,8 +504,11 @@ public Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] player
 
 public Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
 {
-	if (!inGameTextDisplay)
+	if (activeGameText == -1 || !GetEntityHammerID(activeGameText))
+	{
+		// PrintToServer("Ignoring game_text %d, no hammer ID", activeEnvHint);
 		return Plugin_Continue;
+	}
 
 	int channel = msg.ReadByte();
 	float x = msg.ReadFloat();
@@ -687,6 +693,11 @@ void Translate_HudMsg(DataPack data)
 	}
 
 	delete data;
+}
+
+int GetEntityHammerID(int entity)
+{
+	return GetEntProp(entity, Prop_Data, "m_iHammerID");
 }
 
 void SeekFileTillChar(File file, char c)
