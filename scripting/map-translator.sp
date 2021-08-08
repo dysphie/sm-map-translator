@@ -146,30 +146,6 @@ public void OnPluginStart()
 {
 	LoadDetours();
 
-	char path[PLATFORM_MAX_PATH];
-	GetGameFolderName(path, sizeof(path));
-
-	if (StrEqual(path, "nmrih"))
-	{
-		game = GAME_NMRIH;
-		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);	
-	}
-	else if (StrEqual(path, "zps"))
-	{
-		game = GAME_ZPS;
-		HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
-	}
-
-	HookUserMessage(GetUserMessageId("KeyHintText"), UserMsg_KeyHintText, true);
-	HookUserMessage(GetUserMessageId("HudMsg"), UserMsg_HudMsg, true);
-
-	BuildPath(Path_SM, path, sizeof(path), "translations/_maps");
-	if (!DirExists(path) && !CreateDirectory(path, 0o770))
-		SetFailState("Failed to create required directory: %s", path);
-
-	translations = new StringMap();
-	exportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
-
 	CreateConVar("mt_version", PLUGIN_VERSION, "Map Translator by Dysphie.",
 		FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_REPLICATED);
 
@@ -186,7 +162,35 @@ public void OnPluginStart()
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
 		"Clients whose language is not translated will see messages in this language");
 
-	AutoExecConfig(true, "plugin.map-translator");
+	char path[PLATFORM_MAX_PATH];
+	GetGameFolderName(path, sizeof(path));
+
+	if (StrEqual(path, "nmrih"))
+	{
+		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
+		game = GAME_NMRIH;
+		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);	
+	}
+	else
+	{
+		AutoExecConfig(true, "plugin.map-translator");
+
+		if (StrEqual(path, "zps"))
+		{
+			game = GAME_ZPS;
+			HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
+		}
+	}
+
+	HookUserMessage(GetUserMessageId("KeyHintText"), UserMsg_KeyHintText, true);
+	HookUserMessage(GetUserMessageId("HudMsg"), UserMsg_HudMsg, true);
+
+	BuildPath(Path_SM, path, sizeof(path), "translations/_maps");
+	if (!DirExists(path) && !CreateDirectory(path, 0o770))
+		SetFailState("Failed to create required directory: %s", path);
+
+	translations = new StringMap();
+	exportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
 }
 
 public void OnClientConnected(int client)
@@ -201,7 +205,7 @@ public Action Command_LearnAll(int client, int args)
 		ReplyToCommand(client, "This command is only supported in No More Room in Hell");
 		return Plugin_Handled;
 	}
-	
+
 	if (!IsServerProcessing())
 	{
 		ReplyToCommand(client, "Can't build translations while server is hibernating.");
