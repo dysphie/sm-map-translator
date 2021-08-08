@@ -333,10 +333,7 @@ int ZPS_LearnObjectives(ArrayStack stack)
 {
 	int oblist = FindEntityByClassname(-1, "info_objective_list");
 	if (oblist == -1)
-	{
-		// PrintToServer("no oblist");
 		return 0;
-	}
 
 	int count;
 	char buffer[256];
@@ -346,7 +343,6 @@ int ZPS_LearnObjectives(ArrayStack stack)
 		if (!GetEntPropString(oblist, Prop_Data, buffer, buffer, sizeof(buffer)))
 			continue;
 
-		// PrintToServer("found %s in oblist", buffer);
 		stack.PushString(buffer);
 		count++;
 	}
@@ -442,9 +438,7 @@ bool IsNumericalString(const char[] str)
 }
 
 void FlushQueue(ArrayStack& stack, const char[] path)
-{
-	PrintToServer("Flush stack (empty? %d) to %s", stack.Empty, path);
-	
+{	
 	char langCodes[MAX_LANGS][MAX_LANGCODE_LEN];
 	char targetLangs[MAX_LANGS*MAX_LANGCODE_LEN];
 	cvTargetLangs.GetString(targetLangs, sizeof(targetLangs));
@@ -496,14 +490,13 @@ public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players
 	if (bf.ReadString(text, sizeof(text)) <= 0)
 		return Plugin_Continue;
 
-	PrintToServer("UserMsg_ObjectiveState: %d %s", dunnoByte, text);
+	// PrintToServer("UserMsg_ObjectiveState: %d %s", dunnoByte, text);
 
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		PrintToServer("Translation md5 %s didn't exist, will save on flush", md5);
 		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
