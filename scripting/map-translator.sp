@@ -186,7 +186,7 @@ public void OnPluginStart()
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
 		"Clients whose language is not translated will see messages in this language");
 
-	AutoExecConfig();
+	AutoExecConfig(true, "plugin.map-translator");
 }
 
 public void OnClientConnected(int client)
@@ -196,6 +196,12 @@ public void OnClientConnected(int client)
 
 public Action Command_LearnAll(int client, int args)
 {
+	if (game != GAME_NMRIH)
+	{
+		ReplyToCommand(client, "This command is only supported in No More Room in Hell");
+		return Plugin_Handled;
+	}
+	
 	if (!IsServerProcessing())
 	{
 		ReplyToCommand(client, "Can't build translations while server is hibernating.");
