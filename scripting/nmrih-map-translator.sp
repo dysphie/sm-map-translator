@@ -14,14 +14,20 @@
 #define MAX_LANGS 32
 #define MAX_LANGCODE_LEN 10
 
+#define GAME_UNKNOWN 0
+#define GAME_NMRIH 1
+#define GAME_ZPS 2
+
+#define PLUGIN_VERSION "0.3.3"
+
 #define PREFIX "[Map Translator] "
 
 public Plugin myinfo = 
 {
-	name        = "[NMRiH] Map Translator",
+	name        = "[NMRiH/ZPS] Map Translator",
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
-	version     = "0.2.3",
+	version     = PLUGIN_VERSION,
 	url         = ""
 };
 
@@ -29,6 +35,7 @@ ArrayStack exportQueue;
 
 int activeEnvHint = -1;
 int activeGameText = -1;
+int game;
 
 ConVar cvIgnoreNumerical;
 ConVar cvTargetLangs;
@@ -89,8 +96,8 @@ bool MO_LoadTranslations(const char[] path)
 
 bool MO_TranslationPhraseExists(const char[] md5)
 {
-	// FIXME?: This will return false for repeating stuff that hasn't been exported
-	return translations.ContainsKey(md5);
+	static char buffer[2];
+	return translations.GetString(md5, buffer, sizeof(buffer));
 }
 
 bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxlen)
@@ -124,7 +131,11 @@ public void OnConfigsExecuted()
 	// This won't pick up everything, but it's a good baseline
 	// We'll also learn the map as it's played and save again in OnMapEnd
 
-	LearnObjectives(mapName, exportQueue);
+	if (game == GAME_ZPS)
+		ZPS_LearnObjectives(exportQueue);
+	else if (game == GAME_NMRIH)
+		NMRiH_LearnObjectives(mapName, exportQueue);
+
 	LearnTextEntity("game_text", exportQueue);
 	LearnTextEntity("env_hudhint", exportQueue);
 
@@ -136,17 +147,31 @@ public void OnPluginStart()
 	LoadDetours();
 
 	char path[PLATFORM_MAX_PATH];
+	GetGameFolderName(path, sizeof(path));
+
+	if (StrEqual(path, "nmrih"))
+	{
+		game = GAME_NMRIH;
+		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);	
+	}
+	else if (StrEqual(path, "zps"))
+	{
+		game = GAME_ZPS;
+		HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
+	}
+
+	HookUserMessage(GetUserMessageId("KeyHintText"), UserMsg_KeyHintText, true);
+	HookUserMessage(GetUserMessageId("HudMsg"), UserMsg_HudMsg, true);
+
 	BuildPath(Path_SM, path, sizeof(path), "translations/_maps");
 	if (!DirExists(path) && !CreateDirectory(path, 0o770))
 		SetFailState("Failed to create required directory: %s", path);
 
 	translations = new StringMap();
-
 	exportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
 
-	HookUserMessage(GetUserMessageId("KeyHintText"), UserMsg_KeyHintText, true);
-	HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);
-	HookUserMessage(GetUserMessageId("HudMsg"), UserMsg_HudMsg, true);
+	CreateConVar("mt_version", PLUGIN_VERSION, "Map Translator by Dysphie.",
+		FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_REPLICATED);
 
 	RegAdminCmd("mt_bulk_learn_nmo", Command_LearnAll, ADMFLAG_ROOT);
 	RegAdminCmd("mt_force_export", Command_ForceExport, ADMFLAG_ROOT,
@@ -223,7 +248,7 @@ void LearnMapsFrame(DataPack data)
 	maps.GetString(cursor, buffer, sizeof(buffer));
 
 	ArrayStack temp = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
-	if (LearnObjectives(buffer, temp))
+	if (NMRiH_LearnObjectives(buffer, temp))
 	{
 		BuildPath(Path_SM, buffer, sizeof(buffer), "translations/_maps/%s.txt", buffer);
 		FlushQueue(temp, buffer);
@@ -304,7 +329,31 @@ int LearnTextEntity(const char[] classname, ArrayStack stack)
 	return count;
 }
 
-int LearnObjectives(const char[] mapName, ArrayStack stack)
+int ZPS_LearnObjectives(ArrayStack stack)
+{
+	int oblist = FindEntityByClassname(-1, "info_objective_list");
+	if (oblist == -1)
+	{
+		// PrintToServer("no oblist");
+		return 0;
+	}
+
+	int count;
+	char buffer[256];
+	for (int i; i < 16; i++)
+	{
+		FormatEx(buffer, sizeof(buffer), "m_iszObjectiveMsg[%d]", i);
+		if (!GetEntPropString(oblist, Prop_Data, buffer, buffer, sizeof(buffer)))
+			continue;
+
+		// PrintToServer("found %s in oblist", buffer);
+		stack.PushString(buffer);
+		count++;
+	}
+	return count;
+}
+
+int NMRiH_LearnObjectives(const char[] mapName, ArrayStack stack)
 {
 	// Open the .nmo file for reading
 	char path[PLATFORM_MAX_PATH];
@@ -394,6 +443,8 @@ bool IsNumericalString(const char[] str)
 
 void FlushQueue(ArrayStack& stack, const char[] path)
 {
+	PrintToServer("Flush stack (empty? %d) to %s", stack.Empty, path);
+	
 	char langCodes[MAX_LANGS][MAX_LANGCODE_LEN];
 	char targetLangs[MAX_LANGS*MAX_LANGCODE_LEN];
 	cvTargetLangs.GetString(targetLangs, sizeof(targetLangs));
@@ -435,6 +486,39 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 
 	kv.Rewind();
 	kv.ExportToFile(path);
+}
+
+public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+{
+	int dunnoByte = bf.ReadByte(); // I dunno..
+	
+	static char text[MAX_KEYHINT_LEN];
+	if (bf.ReadString(text, sizeof(text)) <= 0)
+		return Plugin_Continue;
+
+	PrintToServer("UserMsg_ObjectiveState: %d %s", dunnoByte, text);
+
+	static char md5[MAX_MD5_LEN];
+	Crypt_MD5(text, md5, sizeof(md5));
+
+	if (!MO_TranslationPhraseExists(md5))
+	{
+		PrintToServer("Translation md5 %s didn't exist, will save on flush", md5);
+		exportQueue.PushString(text);
+		return Plugin_Continue;
+	}
+
+	DataPack data = new DataPack();
+	data.WriteCell(dunnoByte);
+	data.WriteString(text);
+	data.WriteString(md5);
+	data.WriteCell(playersNum);
+
+	for(int i; i < playersNum; i++)
+		data.WriteCell(GetClientSerial(players[i]));
+
+	RequestFrame(Translate_ObjectiveState, data);
+	return Plugin_Handled;
 }
 
 public Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
@@ -592,6 +676,38 @@ void Translate_KeyHintText(DataPack data)
 		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
 
 		Handle msg = StartMessageOne("KeyHintText", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+		BfWrite bf = UserMessageToBfWrite(msg);
+		bf.WriteByte(dunnoByte);
+		bf.WriteString(didTranslate ? translated : original);
+		EndMessage();
+	}
+
+	delete data;
+}
+
+void Translate_ObjectiveState(DataPack data)
+{
+	data.Reset();
+	int dunnoByte = data.ReadCell();
+
+	char original[MAX_KEYHINT_LEN];
+	data.ReadString(original, sizeof(original));
+
+	char md5[MAX_MD5_LEN];
+	data.ReadString(md5, sizeof(md5));
+
+	char translated[MAX_KEYHINT_LEN];
+	
+	int playersNum = data.ReadCell();
+	for (int i; i < playersNum; i++)
+	{
+		int client = GetClientFromSerial(data.ReadCell());
+		if (!client)
+			continue;
+
+		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
+
+		Handle msg = StartMessageOne("ObjectiveState", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 		BfWrite bf = UserMessageToBfWrite(msg);
 		bf.WriteByte(dunnoByte);
 		bf.WriteString(didTranslate ? translated : original);
