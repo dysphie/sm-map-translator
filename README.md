@@ -74,5 +74,5 @@ Configs are saved to `cfg/sourcemod/plugin.nmrih-map-translator.cfg` (Autogenera
 - Linux support is included but untested.
 - This plugin is incompatible with [Multilingual Objectives](https://forums.alliedmods.net/showthread.php?p=2678257) and [Multilingual Objective Beta](https://forums.alliedmods.net/showthread.php?p=2305894).
 
-- You are not expected to manually add new entries, only edit existing (if a specific text is not getting picked up, please [file an issue](https://github.com/dysphie/nmrih-map-translator/issues)!). However nothing will break if you do, the section name is just an [MD5 hash](https://www.md5hashgenerator.com) of the original text.
+- You are not expected to manually add new entries, only edit existing (if a specific text is not getting picked up, please [file an issue](https://github.com/dysphie/nmrih-map-translator/issues)!). However nothing will break if you do, the section name (e.g. `"edf566344eb9f2cb892e073e70c70181"`) is just an [MD5 hash](https://www.md5hashgenerator.com) of the original text.
 
