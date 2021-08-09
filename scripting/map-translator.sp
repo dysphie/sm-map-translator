@@ -96,8 +96,8 @@ bool MO_LoadTranslations(const char[] path)
 
 bool MO_TranslationPhraseExists(const char[] md5)
 {
-	static char buffer[2];
-	return translations.GetString(md5, buffer, sizeof(buffer));
+	StringMap value;
+	return translations.GetValue(md5, value);
 }
 
 bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxlen)
@@ -507,6 +507,7 @@ public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
+		PrintToServer("Translation for \"%s\" not here", text);
 		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
