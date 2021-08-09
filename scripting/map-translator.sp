@@ -18,7 +18,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.4"
+#define PLUGIN_VERSION "0.3.5"
 
 #define PREFIX "[Map Translator] "
 
@@ -41,7 +41,7 @@ ConVar cvIgnoreNumerical;
 ConVar cvTargetLangs;
 ConVar cvDefaultLang;
 
-char clientLang[MAXPLAYERS][MAX_LANGCODE_LEN];
+char clientLang[MAXPLAYERS+1][MAX_LANGCODE_LEN];
 
 StringMap translations;
 
