@@ -8,7 +8,7 @@
 			{
 				"library" "server"
 				"windows"	"\x55\x8B\xEC\x53\x8B\x5D\x08\x57\x8B\xF9\x83\xBF\x88\x06\x00\x00\x00\x74\x2A\x53\xFF\xB7\x88\x06\x00\x00\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x84\xC0"
-				"linux"	"@_Z15UTIL_HudMessageP11CBasePlayerRK14hudtextparms_sPKc"
+				"linux"	"@_ZN9CGameText7DisplayEP11CBaseEntity"
 			}
 
 			"CEnvHudHint::InputShowHudHint"
