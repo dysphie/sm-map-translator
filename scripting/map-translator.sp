@@ -18,7 +18,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.5"
+#define PLUGIN_VERSION "0.3.6"
 
 #define PREFIX "[Map Translator] "
 
