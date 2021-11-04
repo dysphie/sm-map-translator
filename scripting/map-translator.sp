@@ -3,7 +3,6 @@
 
 #include <smlib>
 #include <dhooks>
-#include <profiler>
 
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN 
