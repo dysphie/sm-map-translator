@@ -37,6 +37,33 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x20\x57\x8B\xF9\xF6\x87\x00\x01\x00\x00\x01"
 				"linux"		"@_ZN11CEnvHudHint16InputShowHudHintER11inputdata_t"
 			}
+
+			"CPointMessageMultiplayer::SendMessage"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x50\x53\x8B\xD9\x33\xC0\xB9\x01\x00\x00"
+			}
+		}
+	}
+
+	"nmrih"
+	{
+		"Functions"
+		{
+			"CPointMessageMultiplayer::SendMessage"
+			{
+				"signature"	"CPointMessageMultiplayer::SendMessage"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"	"entity"
+				"arguments"
+				{
+					"player"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
 		}
 	}
 
