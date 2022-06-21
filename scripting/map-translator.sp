@@ -484,15 +484,12 @@ MRESReturn Detour_PointMessageMpPost(int pointText)
 
 MRESReturn Detour_InstructorHintShowPre(int envhint)
 {
-	// FIXME: Remove debug prints
-	PrintToServer("%f Detour_InstructorHintShowPre", GetTickedTime());
 	activeInstructor = envhint;
 	return MRES_Ignored;
 }
 
 MRESReturn Detour_InstructorHintShowPost(int envhint)
 {
-	PrintToServer("%f Detour_InstructorHintShowPost", GetTickedTime());
 	activeInstructor = -1;
 	return MRES_Ignored;
 }
