@@ -1,13 +1,14 @@
 #pragma semicolon 1
 #pragma newdecls required
 
+#include <sourcemod>
 #include <dhooks>
 
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN 
 #define MAX_KEYHINT_LEN MAX_USERMSG_LEN - 1
 #define MAX_HUDMSG_LEN MAX_USERMSG_LEN - 34
-
+#define MAX_INSTRUCTOR_LEN MAX_USERMSG_LEN // TODO: Subtract other params
 #define MAX_POINTTEXTMP_LEN MAX_USERMSG_LEN // TODO: Subtract other params
 
 #define MAX_MD5_LEN 33
@@ -34,6 +35,7 @@ public Plugin myinfo =
 
 ArrayStack exportQueue;
 
+int activeInstructor = -1;
 int activePointTextMp = -1;
 int activeEnvHint = -1;
 int activeGameText = -1;
@@ -140,7 +142,8 @@ public void OnConfigsExecuted()
 	else if (game == GAME_NMRIH)
 	{
 		NMRiH_LearnObjectives(mapName, exportQueue);
-		LearnMessageEntity("point_message_multiplayer", "m_messageText", exportQueue);
+		LearnMessageEntity("point_message_multiplayer", "m_iszMessageText", exportQueue);
+		LearnMessageEntity("env_instructor_hint", "m_iszCaption", exportQueue);
 	}
 
 	LearnMessageEntity("game_text", "m_iszMessage", exportQueue);
@@ -182,6 +185,7 @@ public void OnPluginStart()
 		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
 		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);
 		HookUserMessage(GetUserMessageId("PointMessage"), UserMsg_PointMessageMultiplayer, true);
+		HookEvent("instructor_server_hint_create", Event_InstructorHintCreate, EventHookMode_Pre);
 	}
 	else
 	{
@@ -323,6 +327,9 @@ void LoadDetours()
 	{
 		RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage", 
 			Detour_PointMessageMpPre, Detour_PointMessageMpPost, "point_message_multiplayer");
+
+		RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint", 
+			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
 	}
 
 	delete gamedata;
@@ -475,6 +482,21 @@ MRESReturn Detour_PointMessageMpPost(int pointText)
 	return MRES_Ignored;
 }
 
+MRESReturn Detour_InstructorHintShowPre(int envhint)
+{
+	// FIXME: Remove debug prints
+	PrintToServer("%f Detour_InstructorHintShowPre", GetTickedTime());
+	activeInstructor = envhint;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_InstructorHintShowPost(int envhint)
+{
+	PrintToServer("%f Detour_InstructorHintShowPost", GetTickedTime());
+	activeInstructor = -1;
+	return MRES_Ignored;
+}
+
 bool IsNumericalString(const char[] str)
 {
 	int value;
@@ -526,6 +548,76 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 	kv.ExportToFile(path);
 }
 
+Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
+{
+	if (activeInstructor == -1 || !GetEntityHammerID(activeInstructor))
+	{
+		return Plugin_Continue;
+	}
+
+	// Instructor has 2 texts, one specific to the !activator
+	// and one to everyone else.
+
+	char baseText[MAX_USERMSG_LEN];
+	event.GetString("hint_caption", baseText, sizeof(baseText));
+	char baseMd5[MAX_MD5_LEN];
+	Crypt_MD5(baseText, baseMd5, sizeof(baseMd5));
+
+	bool missingBaseHint = false;
+	if (!MO_TranslationPhraseExists(baseMd5))
+	{
+		exportQueue.PushString(baseText);
+		missingBaseHint = true;
+	}
+
+	char activatorText[MAX_USERMSG_LEN];
+	event.GetString("hint_activator_caption", activatorText, sizeof(activatorText));
+	char activatorMd5[MAX_MD5_LEN];
+	Crypt_MD5(activatorText, activatorMd5, sizeof(activatorMd5));
+
+	bool missingActivatorHint = false;
+	// TODO: This might create a duplicate hint if the activator is the same as the base
+	if (!MO_TranslationPhraseExists(activatorMd5))
+	{
+		exportQueue.PushString(activatorText);
+		missingActivatorHint = true;
+	}
+
+	// If we are missing translation for both texts,
+	// there's nothing for us to do here
+	if (missingBaseHint && missingActivatorHint) {
+		return Plugin_Continue;
+	}
+
+	char translatedBaseText[MAX_USERMSG_LEN];
+	char translatedActivatorText[MAX_USERMSG_LEN];
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+
+		if (!missingBaseHint && MO_TranslateForClient(i, baseMd5, translatedBaseText, sizeof(translatedBaseText))) {
+			event.SetString("hint_caption", translatedBaseText);
+		} else {
+			event.SetString("hint_caption", baseText);
+		}
+
+		if (!missingActivatorHint && MO_TranslateForClient(i, activatorMd5, translatedActivatorText, sizeof(translatedActivatorText))) {
+			event.SetString("hint_activator_caption", translatedActivatorText);
+		} else {
+			event.SetString("hint_activator_caption", activatorText);
+		}
+		
+		event.FireToClient(i);
+	}
+
+	// Eat the original event
+	event.BroadcastDisabled = true;
+	return Plugin_Continue;
+}
+
+
 Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	int dunnoByte = bf.ReadByte(); // I dunno..
@@ -541,7 +633,6 @@ Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int p
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		PrintToServer("Translation for \"%s\" not here", text);
 		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
