@@ -1,13 +1,16 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#include <smlib>
+#include <sourcemod>
 #include <dhooks>
 
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN 
 #define MAX_KEYHINT_LEN MAX_USERMSG_LEN - 1
 #define MAX_HUDMSG_LEN MAX_USERMSG_LEN - 34
+#define MAX_INSTRUCTOR_LEN MAX_USERMSG_LEN // TODO: Subtract other params
+#define MAX_POINTTEXTMP_LEN MAX_USERMSG_LEN // TODO: Subtract other params
+
 #define MAX_MD5_LEN 33
 
 #define MAX_LANGS 32
@@ -17,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.6"
+#define PLUGIN_VERSION "0.3.8"
 
 #define PREFIX "[Map Translator] "
 
@@ -27,11 +30,13 @@ public Plugin myinfo =
 	author      = "Dysphie",
 	description = "Translate maps via auto-generated configs",
 	version     = PLUGIN_VERSION,
-	url         = ""
+	url         = "https://github.com/dysphie/sm-map-translator"
 };
 
 ArrayStack exportQueue;
 
+int activeInstructor = -1;
+int activePointTextMp = -1;
 int activeEnvHint = -1;
 int activeGameText = -1;
 int game;
@@ -49,7 +54,7 @@ void MO_UnloadTranslations()
 	translations.Clear();
 }
 
-bool MO_LoadTranslations(const char[] path)
+void MO_LoadTranslations(const char[] path)
 {
 	KeyValues kv = new KeyValues("Phrases");
 	kv.SetEscapeSequences(true);
@@ -131,18 +136,32 @@ public void OnConfigsExecuted()
 	// We'll also learn the map as it's played and save again in OnMapEnd
 
 	if (game == GAME_ZPS)
+	{
 		ZPS_LearnObjectives(exportQueue);
+	}
 	else if (game == GAME_NMRIH)
+	{
 		NMRiH_LearnObjectives(mapName, exportQueue);
+		LearnMessageEntity("point_message_multiplayer", "m_iszMessageText", exportQueue);
+		LearnMessageEntity("env_instructor_hint", "m_iszCaption", exportQueue);
+	}
 
-	LearnTextEntity("game_text", exportQueue);
-	LearnTextEntity("env_hudhint", exportQueue);
+	LearnMessageEntity("game_text", "m_iszMessage", exportQueue);
+	LearnMessageEntity("env_hudhint","m_iszMessage", exportQueue);
 
 	FlushQueue(exportQueue, path);
 }
 
 public void OnPluginStart()
 {
+	char path[PLATFORM_MAX_PATH];
+	GetGameFolderName(path, sizeof(path));
+	if (StrEqual(path, "zps")) {
+		game = GAME_ZPS;
+	} else if (StrEqual(path, "nmrih")) {
+		game = GAME_NMRIH;
+	}
+
 	LoadDetours();
 
 	CreateConVar("mt_version", PLUGIN_VERSION, "Map Translator by Dysphie.",
@@ -161,22 +180,19 @@ public void OnPluginStart()
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
 		"Clients whose language is not translated will see messages in this language");
 
-	char path[PLATFORM_MAX_PATH];
-	GetGameFolderName(path, sizeof(path));
-
-	if (StrEqual(path, "nmrih"))
+	if (game == GAME_NMRIH)
 	{
 		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
-		game = GAME_NMRIH;
-		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);	
+		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);
+		HookUserMessage(GetUserMessageId("PointMessage"), UserMsg_PointMessageMultiplayer, true);
+		HookEvent("instructor_server_hint_create", Event_InstructorHintCreate, EventHookMode_Pre);
 	}
 	else
 	{
 		AutoExecConfig(true, "plugin.map-translator");
 
-		if (StrEqual(path, "zps"))
+		if (game == GAME_ZPS)
 		{
-			game = GAME_ZPS;
 			HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
 		}
 	}
@@ -197,7 +213,7 @@ public void OnClientConnected(int client)
 	GetLanguageInfo(GetClientLanguage(client), clientLang[client], sizeof(clientLang[]));
 }
 
-public Action Command_LearnAll(int client, int args)
+Action Command_LearnAll(int client, int args)
 {
 	if (game != GAME_NMRIH)
 	{
@@ -225,7 +241,7 @@ public Action Command_LearnAll(int client, int args)
 	return Plugin_Handled;
 }
 
-public Action Command_ForceExport(int client, int args)
+Action Command_ForceExport(int client, int args)
 {
 	char buffer[PLATFORM_MAX_PATH];
 	GetCurrentMap(buffer, sizeof(buffer));
@@ -270,7 +286,7 @@ void LearnMapsFrame(DataPack data)
 	RequestFrame(LearnMapsFrame, data);
 }
 
-public Action Command_ReloadTranslations(int client, const char[] command, int argc)
+Action Command_ReloadTranslations(int client, const char[] command, int argc)
 {
 	char mapName[PLATFORM_MAX_PATH];
 	if (GetCurrentMap(mapName, sizeof(mapName)))
@@ -302,34 +318,44 @@ void LoadDetours()
 	if (!gamedata)
 		SetFailState("Failed to load gamedata");
 
-	DynamicDetour detour;
+	RegMessageDetour(gamedata, "CGameText::Display", 
+		Detour_GameTextDisplayPre, Detour_GameTextDisplayPost, "game_text");
+	RegMessageDetour(gamedata, "CEnvHudHint::InputShowHudHint", 
+		Detour_HudHintShowPre, Detour_HudHintShowPost, "env_hudhint");
 
-	detour = DynamicDetour.FromConf(gamedata, "CGameText::Display");
-	if (!detour)
-		SetFailState("Failed to detour CGameText::Display");
-	detour.Enable(Hook_Pre, Detour_GameTextDisplayPre);
-	detour.Enable(Hook_Post, Detour_GameTextDisplayPost);
-	delete detour;
+	if (game == GAME_NMRIH)
+	{
+		RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage", 
+			Detour_PointMessageMpPre, Detour_PointMessageMpPost, "point_message_multiplayer");
 
-	detour = DynamicDetour.FromConf(gamedata, "CEnvHudHint::InputShowHudHint");
-	if (!detour)
-		SetFailState("Failed to detour CEnvHudHint::InputShowHudHint");
-	detour.Enable(Hook_Pre, Detour_HudHintShowPre);
-	detour.Enable(Hook_Post, Detour_HudHintShowPost);
-	delete detour;
+		RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint", 
+			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
+	}
 
 	delete gamedata;
 }
 
+void RegMessageDetour(GameData gd, const char[] fnName, DHookCallback pre, DHookCallback post, const char[] entityName)
+{
+	DynamicDetour detour;
+	detour = DynamicDetour.FromConf(gd, fnName);
+	if (!detour) {
+		LogError("Failed to detour %s. Unsupported game or outdated plugin. '%s' won't be translated. ", fnName, entityName);
+	} else {
+		detour.Enable(Hook_Pre, pre);
+		detour.Enable(Hook_Post, post);
+	}
+	delete detour;
+}
 
-int LearnTextEntity(const char[] classname, ArrayStack stack)
+int LearnMessageEntity(const char[] classname, const char[] propName, ArrayStack stack)
 {
 	int count;
 	char text[MAX_USERMSG_LEN];
 	int e = -1;
 	while ((e = FindEntityByClassname(e, classname)) != -1)
 	{
-		if (GetEntityHammerID(e) && GetEntPropString(e, Prop_Data, "m_iszMessage", text, sizeof(text)))
+		if (GetEntityHammerID(e) && GetEntPropString(e, Prop_Data, propName, text, sizeof(text)))
 		{
 			stack.PushString(text);
 			count++;
@@ -420,24 +446,52 @@ int NMRiH_LearnObjectives(const char[] mapName, ArrayStack stack)
 	return objectivesCount;
 }
 
-public MRESReturn Detour_GameTextDisplayPre(int gametext)
+MRESReturn Detour_GameTextDisplayPre(int gametext)
 {
 	activeGameText = gametext;
+	return MRES_Ignored;
 }
 
-public MRESReturn Detour_GameTextDisplayPost(int gametext)
+MRESReturn Detour_GameTextDisplayPost(int gametext)
 {
 	activeGameText = -1;
+	return MRES_Ignored;
 }
 
-public MRESReturn Detour_HudHintShowPre(int envhint)
+MRESReturn Detour_HudHintShowPre(int envhint)
 {
 	activeEnvHint = envhint;
+	return MRES_Ignored;
 }
 
-public MRESReturn Detour_HudHintShowPost(int envhint)
+MRESReturn Detour_HudHintShowPost(int envhint)
 {
 	activeEnvHint = -1;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_PointMessageMpPre(int pointText)
+{
+	activePointTextMp = pointText;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_PointMessageMpPost(int pointText)
+{
+	activePointTextMp = -1;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_InstructorHintShowPre(int envhint)
+{
+	activeInstructor = envhint;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_InstructorHintShowPost(int envhint)
+{
+	activeInstructor = -1;
+	return MRES_Ignored;
 }
 
 bool IsNumericalString(const char[] str)
@@ -491,7 +545,79 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 	kv.ExportToFile(path);
 }
 
-public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
+{
+	if (activeInstructor == -1 || !GetEntityHammerID(activeInstructor))
+	{
+		return Plugin_Continue;
+	}
+
+	// Instructor has 2 texts, one specific to the !activator
+	// and one to everyone else.
+
+	char baseText[MAX_USERMSG_LEN];
+	event.GetString("hint_caption", baseText, sizeof(baseText));
+	char baseMd5[MAX_MD5_LEN];
+	Crypt_MD5(baseText, baseMd5, sizeof(baseMd5));
+
+	bool missingBaseHint = false;
+	if (!MO_TranslationPhraseExists(baseMd5))
+	{
+		exportQueue.PushString(baseText);
+		missingBaseHint = true;
+	}
+
+	char activatorText[MAX_USERMSG_LEN];
+	event.GetString("hint_activator_caption", activatorText, sizeof(activatorText));
+	char activatorMd5[MAX_MD5_LEN];
+	Crypt_MD5(activatorText, activatorMd5, sizeof(activatorMd5));
+
+	bool missingActivatorHint = false;
+	// TODO: This might create a duplicate hint if the activator is the same as the base
+	if (!MO_TranslationPhraseExists(activatorMd5))
+	{
+		exportQueue.PushString(activatorText);
+		missingActivatorHint = true;
+	}
+
+	// If we are missing translation for both texts,
+	// there's nothing for us to do here
+	if (missingBaseHint && missingActivatorHint) {
+		return Plugin_Continue;
+	}
+
+	char translatedBaseText[MAX_USERMSG_LEN];
+	char translatedActivatorText[MAX_USERMSG_LEN];
+
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i) || IsFakeClient(i))
+			continue;
+
+		if (!missingBaseHint && MO_TranslateForClient(i, baseMd5, translatedBaseText, sizeof(translatedBaseText))) {
+			event.SetString("hint_caption", translatedBaseText);
+		} else {
+			event.SetString("hint_caption", baseText);
+		}
+
+		if (!missingActivatorHint && MO_TranslateForClient(i, activatorMd5, translatedActivatorText, sizeof(translatedActivatorText))) {
+			event.SetString("hint_activator_caption", translatedActivatorText);
+		} else {
+			event.SetString("hint_activator_caption", activatorText);
+		}
+		
+		event.FireToClient(i);
+	}
+
+	// Eat the original event
+	event.BroadcastDisabled = true;
+
+	// FIXME: Do we need to call event.Cancel here?
+	return Plugin_Continue;
+}
+
+
+Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	int dunnoByte = bf.ReadByte(); // I dunno..
 	
@@ -506,7 +632,6 @@ public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		PrintToServer("Translation for \"%s\" not here", text);
 		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
@@ -524,7 +649,7 @@ public Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players
 	return Plugin_Handled;
 }
 
-public Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	if (activeEnvHint == -1 || !GetEntityHammerID(activeEnvHint))
 	{
@@ -563,7 +688,7 @@ public Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, i
 	return Plugin_Handled;
 }
 
-public Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	char text[MAX_OBJNOTIFY_LEN];
 	if (bf.ReadString(text, sizeof(text)) <= 0)
@@ -589,7 +714,67 @@ public Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] player
 	return Plugin_Handled;
 }
 
-public Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+{
+	if (activePointTextMp == -1 || !GetEntityHammerID(activePointTextMp))
+	{
+		// PrintToServer("Ignoring game_text %d, no hammer ID", activeEnvHint);
+		return Plugin_Continue;
+	}
+
+	static char text[MAX_POINTTEXTMP_LEN];
+	if (bf.ReadString(text, sizeof(text)) <= 0)
+		return Plugin_Continue;
+
+	static char md5[MAX_MD5_LEN];
+	Crypt_MD5(text, md5, sizeof(md5));
+
+	if (!MO_TranslationPhraseExists(md5))
+	{
+		exportQueue.PushString(text);
+		return Plugin_Continue;
+	}
+
+	int entity = bf.ReadShort();
+	int flags = bf.ReadShort();
+
+	float coord[3];
+	bf.ReadVecCoord(coord);
+
+	float radius = bf.ReadFloat();
+
+	char fontName[64];
+	bf.ReadString(fontName, sizeof(fontName));
+
+	int r = bf.ReadByte();
+	int g = bf.ReadByte();
+	int b = bf.ReadByte();
+	
+	DataPack data = new DataPack();
+	data.WriteString(text);
+	data.WriteString(md5);
+	data.WriteCell(entity);
+	data.WriteCell(flags);
+	data.WriteFloat(coord[0]);
+	data.WriteFloat(coord[1]);
+	data.WriteFloat(coord[2]);
+	data.WriteFloat(radius);
+	data.WriteString(fontName);
+	data.WriteCell(r);
+	data.WriteCell(g);
+	data.WriteCell(b);
+	data.WriteCell(playersNum);
+
+	for (int i; i < playersNum; i++)
+	{
+		data.WriteCell(GetClientSerial(players[i]));
+	}
+
+	RequestFrame(Translate_PointMessageMultiplayer, data);
+	return Plugin_Handled;
+}
+
+Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
 {
 	if (activeGameText == -1 || !GetEntityHammerID(activeGameText))
 	{
@@ -654,6 +839,70 @@ public Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, in
 
 	RequestFrame(Translate_HudMsg, data);
 	return Plugin_Handled;
+}
+
+void Translate_PointMessageMultiplayer(DataPack data)
+{
+	data.Reset();
+
+	char original[MAX_POINTTEXTMP_LEN];
+	data.ReadString(original, sizeof(original));
+
+	char md5[MAX_MD5_LEN];
+	data.ReadString(md5, sizeof(md5));
+
+	int entity = data.ReadCell();
+	int flags = data.ReadCell();
+	float coord[3];
+	
+	coord[0] = data.ReadFloat();
+	coord[1] = data.ReadFloat();
+	coord[2] = data.ReadFloat();
+	
+	float radius = data.ReadFloat();
+	
+	char fontName[64];
+	data.ReadString(fontName, sizeof(fontName));
+
+	int r = data.ReadCell();
+	int g = data.ReadCell();
+	int b = data.ReadCell();
+
+	int playersNum = data.ReadCell();
+
+	int[] userids = new int[playersNum];
+	for (int i; i < playersNum; i++)
+	{
+		userids[i] = data.ReadCell();
+	}
+
+	delete data;
+
+	char translated[MAX_POINTTEXTMP_LEN];
+
+	for (int i; i < playersNum; i++)
+	{
+		int client = GetClientFromSerial(userids[i]);
+		if (!client)
+			continue;
+
+		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
+
+		Handle msg = StartMessageOne("PointMessage", client, USERMSG_BLOCKHOOKS);
+		BfWrite bf = UserMessageToBfWrite(msg);
+		
+		bf.WriteString(didTranslate ? translated : original);
+		bf.WriteShort(entity);
+		bf.WriteShort(flags);
+		bf.WriteVecCoord(coord);
+		bf.WriteFloat(radius);
+		bf.WriteString(fontName);
+		bf.WriteByte(r);
+		bf.WriteByte(g);
+		bf.WriteByte(b);
+		
+		EndMessage();
+	}
 }
 
 void Translate_KeyHintText(DataPack data)
@@ -777,12 +1026,21 @@ void Translate_HudMsg(DataPack data)
 	char md5[MAX_MD5_LEN];
 	data.ReadString(md5, sizeof(md5));
 
-	char translated[MAX_HUDMSG_LEN];
-
 	int playersNum = data.ReadCell();
+
+	int[] userids = new int[playersNum];
 	for (int i; i < playersNum; i++)
 	{
-		int client = GetClientFromSerial(data.ReadCell());
+		userids[i] = data.ReadCell();
+	}
+
+	delete data;
+
+	char translated[MAX_HUDMSG_LEN];
+
+	for (int i; i < playersNum; i++)
+	{
+		int client = GetClientFromSerial(userids[i]);
 		if (!client)
 			continue;
 
@@ -810,8 +1068,6 @@ void Translate_HudMsg(DataPack data)
 		bf.WriteString(didTranslate ? translated : original);
 		EndMessage();
 	}
-
-	delete data;
 }
 
 int GetEntityHammerID(int entity)
@@ -847,4 +1103,236 @@ void StrToLower(char[] str)
 		str[i] = CharToLower(str[i]);
 		i++;
 	}
+}
+
+// MD5 stuff, taken from smlib
+
+void Crypt_MD5(const char[] str, char[] output, int maxlen)
+{
+	int x[2];
+	int buf[4];
+	int input[64];
+	int i, ii;
+
+	int len = strlen(str);
+
+	// MD5Init
+	x[0] = x[1] = 0;
+	buf[0] = 0x67452301;
+	buf[1] = 0xefcdab89;
+	buf[2] = 0x98badcfe;
+	buf[3] = 0x10325476;
+
+	// MD5Update
+	int update[16];
+
+	update[14] = x[0];
+	update[15] = x[1];
+
+	int mdi = (x[0] >>> 3) & 0x3F;
+
+	if ((x[0] + (len << 3)) < x[0]) {
+		x[1] += 1;
+	}
+
+	x[0] += len << 3;
+	x[1] += len >>> 29;
+
+	int c = 0;
+	while (len--) {
+		input[mdi] = str[c];
+		mdi += 1;
+		c += 1;
+
+		if (mdi == 0x40) {
+
+			for (i = 0, ii = 0; i < 16; ++i, ii += 4)
+			{
+				update[i] = (input[ii + 3] << 24) | (input[ii + 2] << 16) | (input[ii + 1] << 8) | input[ii];
+			}
+
+			// Transform
+			MD5Transform(buf, update);
+
+			mdi = 0;
+		}
+	}
+
+	// MD5Final
+	int padding[64] = {
+		0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+
+	int inx[16];
+	inx[14] = x[0];
+	inx[15] = x[1];
+
+	mdi = (x[0] >>> 3) & 0x3F;
+
+	len = (mdi < 56) ? (56 - mdi) : (120 - mdi);
+	update[14] = x[0];
+	update[15] = x[1];
+
+	mdi = (x[0] >>> 3) & 0x3F;
+
+	if ((x[0] + (len << 3)) < x[0]) {
+		x[1] += 1;
+	}
+
+	x[0] += len << 3;
+	x[1] += len >>> 29;
+
+	c = 0;
+	while (len--) {
+		input[mdi] = padding[c];
+		mdi += 1;
+		c += 1;
+
+		if (mdi == 0x40) {
+
+			for (i = 0, ii = 0; i < 16; ++i, ii += 4) {
+				update[i] = (input[ii + 3] << 24) | (input[ii + 2] << 16) | (input[ii + 1] << 8) | input[ii];
+			}
+
+			// Transform
+			MD5Transform(buf, update);
+
+			mdi = 0;
+		}
+	}
+
+	for (i = 0, ii = 0; i < 14; ++i, ii += 4) {
+		inx[i] = (input[ii + 3] << 24) | (input[ii + 2] << 16) | (input[ii + 1] << 8) | input[ii];
+	}
+
+	MD5Transform(buf, inx);
+
+	int digest[16];
+	for (i = 0, ii = 0; i < 4; ++i, ii += 4) {
+		digest[ii] = (buf[i]) & 0xFF;
+		digest[ii + 1] = (buf[i] >>> 8) & 0xFF;
+		digest[ii + 2] = (buf[i] >>> 16) & 0xFF;
+		digest[ii + 3] = (buf[i] >>> 24) & 0xFF;
+	}
+
+	FormatEx(output, maxlen, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+		digest[0], digest[1], digest[2], digest[3], digest[4], digest[5], digest[6], digest[7],
+		digest[8], digest[9], digest[10], digest[11], digest[12], digest[13], digest[14], digest[15]);
+}
+
+
+void MD5Transform_FF(int &a, int &b, int &c, int &d, int x, int s, int ac)
+{
+	a += (((b) & (c)) | ((~b) & (d))) + x + ac;
+	a = (((a) << (s)) | ((a) >>> (32-(s))));
+	a += b;
+}
+
+void MD5Transform_GG(int &a, int &b, int &c, int &d, int x, int s, int ac)
+{
+	a += (((b) & (d)) | ((c) & (~d))) + x + ac;
+	a = (((a) << (s)) | ((a) >>> (32-(s))));
+	a += b;
+}
+
+void MD5Transform_HH(int &a, int &b, int &c, int &d, int x, int s, int ac)
+	{
+	a += ((b) ^ (c) ^ (d)) + x + ac;
+	a = (((a) << (s)) | ((a) >>> (32-(s))));
+	a += b;
+}
+
+void MD5Transform_II(int &a, int &b, int &c, int &d, int x, int s, int ac)
+{
+	a += ((c) ^ ((b) | (~d))) + x + ac;
+	a = (((a) << (s)) | ((a) >>> (32-(s))));
+	a += b;
+}
+
+void MD5Transform(int[] buf, int[] input)
+{
+	int a = buf[0];
+	int b = buf[1];
+	int c = buf[2];
+	int d = buf[3];
+
+	MD5Transform_FF(a, b, c, d, input[0], 7, 0xd76aa478);
+	MD5Transform_FF(d, a, b, c, input[1], 12, 0xe8c7b756);
+	MD5Transform_FF(c, d, a, b, input[2], 17, 0x242070db);
+	MD5Transform_FF(b, c, d, a, input[3], 22, 0xc1bdceee);
+	MD5Transform_FF(a, b, c, d, input[4], 7, 0xf57c0faf);
+	MD5Transform_FF(d, a, b, c, input[5], 12, 0x4787c62a);
+	MD5Transform_FF(c, d, a, b, input[6], 17, 0xa8304613);
+	MD5Transform_FF(b, c, d, a, input[7], 22, 0xfd469501);
+	MD5Transform_FF(a, b, c, d, input[8], 7, 0x698098d8);
+	MD5Transform_FF(d, a, b, c, input[9], 12, 0x8b44f7af);
+	MD5Transform_FF(c, d, a, b, input[10], 17, 0xffff5bb1);
+	MD5Transform_FF(b, c, d, a, input[11], 22, 0x895cd7be);
+	MD5Transform_FF(a, b, c, d, input[12], 7, 0x6b901122);
+	MD5Transform_FF(d, a, b, c, input[13], 12, 0xfd987193);
+	MD5Transform_FF(c, d, a, b, input[14], 17, 0xa679438e);
+	MD5Transform_FF(b, c, d, a, input[15], 22, 0x49b40821);
+
+	MD5Transform_GG(a, b, c, d, input[1], 5, 0xf61e2562);
+	MD5Transform_GG(d, a, b, c, input[6], 9, 0xc040b340);
+	MD5Transform_GG(c, d, a, b, input[11], 14, 0x265e5a51);
+	MD5Transform_GG(b, c, d, a, input[0], 20, 0xe9b6c7aa);
+	MD5Transform_GG(a, b, c, d, input[5], 5, 0xd62f105d);
+	MD5Transform_GG(d, a, b, c, input[10], 9, 0x02441453);
+	MD5Transform_GG(c, d, a, b, input[15], 14, 0xd8a1e681);
+	MD5Transform_GG(b, c, d, a, input[4], 20, 0xe7d3fbc8);
+	MD5Transform_GG(a, b, c, d, input[9], 5, 0x21e1cde6);
+	MD5Transform_GG(d, a, b, c, input[14], 9, 0xc33707d6);
+	MD5Transform_GG(c, d, a, b, input[3], 14, 0xf4d50d87);
+	MD5Transform_GG(b, c, d, a, input[8], 20, 0x455a14ed);
+	MD5Transform_GG(a, b, c, d, input[13], 5, 0xa9e3e905);
+	MD5Transform_GG(d, a, b, c, input[2], 9, 0xfcefa3f8);
+	MD5Transform_GG(c, d, a, b, input[7], 14, 0x676f02d9);
+	MD5Transform_GG(b, c, d, a, input[12], 20, 0x8d2a4c8a);
+
+	MD5Transform_HH(a, b, c, d, input[5], 4, 0xfffa3942);
+	MD5Transform_HH(d, a, b, c, input[8], 11, 0x8771f681);
+	MD5Transform_HH(c, d, a, b, input[11], 16, 0x6d9d6122);
+	MD5Transform_HH(b, c, d, a, input[14], 23, 0xfde5380c);
+	MD5Transform_HH(a, b, c, d, input[1], 4, 0xa4beea44);
+	MD5Transform_HH(d, a, b, c, input[4], 11, 0x4bdecfa9);
+	MD5Transform_HH(c, d, a, b, input[7], 16, 0xf6bb4b60);
+	MD5Transform_HH(b, c, d, a, input[10], 23, 0xbebfbc70);
+	MD5Transform_HH(a, b, c, d, input[13], 4, 0x289b7ec6);
+	MD5Transform_HH(d, a, b, c, input[0], 11, 0xeaa127fa);
+	MD5Transform_HH(c, d, a, b, input[3], 16, 0xd4ef3085);
+	MD5Transform_HH(b, c, d, a, input[6], 23, 0x04881d05);
+	MD5Transform_HH(a, b, c, d, input[9], 4, 0xd9d4d039);
+	MD5Transform_HH(d, a, b, c, input[12], 11, 0xe6db99e5);
+	MD5Transform_HH(c, d, a, b, input[15], 16, 0x1fa27cf8);
+	MD5Transform_HH(b, c, d, a, input[2], 23, 0xc4ac5665);
+
+	MD5Transform_II(a, b, c, d, input[0], 6, 0xf4292244);
+	MD5Transform_II(d, a, b, c, input[7], 10, 0x432aff97);
+	MD5Transform_II(c, d, a, b, input[14], 15, 0xab9423a7);
+	MD5Transform_II(b, c, d, a, input[5], 21, 0xfc93a039);
+	MD5Transform_II(a, b, c, d, input[12], 6, 0x655b59c3);
+	MD5Transform_II(d, a, b, c, input[3], 10, 0x8f0ccc92);
+	MD5Transform_II(c, d, a, b, input[10], 15, 0xffeff47d);
+	MD5Transform_II(b, c, d, a, input[1], 21, 0x85845dd1);
+	MD5Transform_II(a, b, c, d, input[8], 6, 0x6fa87e4f);
+	MD5Transform_II(d, a, b, c, input[15], 10, 0xfe2ce6e0);
+	MD5Transform_II(c, d, a, b, input[6], 15, 0xa3014314);
+	MD5Transform_II(b, c, d, a, input[13], 21, 0x4e0811a1);
+	MD5Transform_II(a, b, c, d, input[4], 6, 0xf7537e82);
+	MD5Transform_II(d, a, b, c, input[11], 10, 0xbd3af235);
+	MD5Transform_II(c, d, a, b, input[2], 15, 0x2ad7d2bb);
+	MD5Transform_II(b, c, d, a, input[9], 21, 0xeb86d391);
+
+	buf[0] += a;
+	buf[1] += b;
+	buf[2] += c;
+	buf[3] += d;
 }

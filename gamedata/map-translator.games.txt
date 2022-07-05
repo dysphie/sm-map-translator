@@ -37,6 +37,56 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x20\x57\x8B\xF9\xF6\x87\x00\x01\x00\x00\x01"
 				"linux"		"@_ZN11CEnvHudHint16InputShowHudHintER11inputdata_t"
 			}
+
+			"CPointMessageMultiplayer::SendMessage"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x50\x53\x8B\xD9\x33\xC0\xB9\x01\x00\x00"
+				"linux"		"@_ZN24CPointMessageMultiplayer11SendMessageEP11CBasePlayer"
+			}
+
+			"CEnvInstructorHint::InputShowHint"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x8C\x00\x00\x00\x56\x8B\xF1\x8B\x0D"
+				"linux"		"@_ZN18CEnvInstructorHint13InputShowHintER11inputdata_t"
+			}
+		}
+	}
+
+	"nmrih"
+	{
+		"Functions"
+		{
+			"CEnvInstructorHint::InputShowHint"
+			{
+				"signature"	"CEnvInstructorHint::InputShowHint"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"	"entity"
+				"arguments"
+				{
+					"inputdata"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
+
+			"CPointMessageMultiplayer::SendMessage"
+			{
+				"signature"	"CPointMessageMultiplayer::SendMessage"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"	"entity"
+				"arguments"
+				{
+					"player"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
 		}
 	}
 
