@@ -42,14 +42,14 @@
 			{
 				"library"	"server"
 				"windows"	"\x55\x8B\xEC\x83\xEC\x50\x53\x8B\xD9\x33\xC0\xB9\x01\x00\x00"
-				// FIXME: linux
+				"linux"		"@_ZN24CPointMessageMultiplayer11SendMessageEP11CBasePlayer"
 			}
 
 			"CEnvInstructorHint::InputShowHint"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x81\xEC\x94\x00\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x56\x8B\xF1\x8B\x0D"
-				// FIXME: linux
+				"windows"	"\x55\x8B\xEC\x81\xEC\x8C\x00\x00\x00\x56\x8B\xF1\x8B\x0D"
+				"linux"		"@_ZN18CEnvInstructorHint13InputShowHintER11inputdata_t"
 			}
 		}
 	}

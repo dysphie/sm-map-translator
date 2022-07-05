@@ -611,6 +611,8 @@ Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroad
 
 	// Eat the original event
 	event.BroadcastDisabled = true;
+
+	// FIXME: Do we need to call event.Cancel here?
 	return Plugin_Continue;
 }
 
