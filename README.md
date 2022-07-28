@@ -13,7 +13,7 @@ The following are supported:
 
 ## Installation
 
-- Install [DHooks2](https://github.com/peace-maker/DHooks2#installation).
+- Install Sourcemod 1.11 or higher
 - Grab the latest [release ZIP](https://github.com/dysphie/sm-map-translator/releases) and extract to `addons/sourcemod`.
 - Reload the server to reflect the changes.
 
