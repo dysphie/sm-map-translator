@@ -3,11 +3,17 @@
 
 Provides a way to translate maps via translation files, allowing players to see messages in their preferred language. 
 
+Currently supported games:
+- Zombie Panic Source
+- No More Room in Hell
+
 The following are supported:
 
-| Objectives | Game text | HUD Hints |
+| NMRIH objectives | ZPS objectives | game_text |
 |------------|-----------|-----------|
-| ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png)<br />![image](https://user-images.githubusercontent.com/11559683/128650387-7bfd2a74-5546-4f26-b63f-5af802d8666a.png) | ![image](https://user-images.githubusercontent.com/11559683/127247367-37e055ee-9c63-42c8-948d-ec4aeae1166f.png)<br />![image](https://user-images.githubusercontent.com/11559683/128650505-3c7aa042-121d-43f9-82a8-2614b9074418.png)       | ![image](https://user-images.githubusercontent.com/11559683/127247508-0e1fd033-9414-47f8-879c-d5bbd6336fec.png)       |
+| ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png) | ![image](https://user-images.githubusercontent.com/11559683/128650387-7bfd2a74-5546-4f26-b63f-5af802d8666a.png) | ![image](https://user-images.githubusercontent.com/11559683/127247367-37e055ee-9c63-42c8-948d-ec4aeae1166f.png)<br />![image](https://user-images.githubusercontent.com/11559683/128650505-3c7aa042-121d-43f9-82a8-2614b9074418.png)              |
+|  env_instructor_hint | env_hudhint | point_message_multiplayer |
+![image](https://user-images.githubusercontent.com/11559683/183286159-47e99350-1c69-4927-bdff-0ce62509f849.png) | ![image](https://user-images.githubusercontent.com/11559683/127247508-0e1fd033-9414-47f8-879c-d5bbd6336fec.png) | ![image](https://user-images.githubusercontent.com/11559683/183286270-e78307ae-db61-4395-af8e-6e69193051a2.png)
 
 
 
