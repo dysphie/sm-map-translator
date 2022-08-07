@@ -3,11 +3,11 @@
 
 Provides a way to translate maps via translation files, allowing players to see messages in their preferred language. 
 
-Currently supported games:
+**Supported games**:
 - Zombie Panic Source
 - No More Room in Hell
 
-The following are supported:
+**Supported text**:
 
 | NMRIH objectives | ZPS objectives | game_text |
 |------------|-----------|-----------|
