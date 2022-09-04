@@ -441,7 +441,7 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 
 	delete kv;
 
-	PrintToServer("Exported %d phrases", count);
+	// PrintToServer("Exported %d phrases", count);
 }
 
 Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
