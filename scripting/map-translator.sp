@@ -33,12 +33,10 @@ public Plugin myinfo =
 	url         = "https://github.com/dysphie/sm-map-translator"
 };
 
-ArrayStack exportQueue;
+ArrayStack g_ExportQueue;
 
-int activeInstructor = -1;
-int activePointTextMp = -1;
-int activeEnvHint = -1;
-int activeGameText = -1;
+#include "map-translator/ent-lump-parser.sp"
+
 int game;
 
 ConVar cvIgnoreNumerical;
@@ -137,19 +135,14 @@ public void OnConfigsExecuted()
 
 	if (game == GAME_ZPS)
 	{
-		ZPS_LearnObjectives(exportQueue);
+		ZPS_LearnObjectives(g_ExportQueue);
 	}
 	else if (game == GAME_NMRIH)
 	{
-		NMRiH_LearnObjectives(mapName, exportQueue);
-		LearnMessageEntity("point_message_multiplayer", "m_iszMessageText", exportQueue);
-		LearnMessageEntity("env_instructor_hint", "m_iszCaption", exportQueue);
+		NMRiH_LearnObjectives(mapName, g_ExportQueue);
 	}
 
-	LearnMessageEntity("game_text", "m_iszMessage", exportQueue);
-	LearnMessageEntity("env_hudhint","m_iszMessage", exportQueue);
-
-	FlushQueue(exportQueue, path);
+	FlushQueue(g_ExportQueue, path);
 }
 
 public void OnPluginStart()
@@ -162,7 +155,7 @@ public void OnPluginStart()
 		game = GAME_NMRIH;
 	}
 
-	LoadDetours();
+	Parser_OnPluginStart();
 
 	CreateConVar("mt_version", PLUGIN_VERSION, "Map Translator by Dysphie.",
 		FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_REPLICATED);
@@ -205,7 +198,7 @@ public void OnPluginStart()
 		SetFailState("Failed to create required directory: %s", path);
 
 	translations = new StringMap();
-	exportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
+	g_ExportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
 }
 
 public void OnClientConnected(int client)
@@ -246,7 +239,7 @@ Action Command_ForceExport(int client, int args)
 	char buffer[PLATFORM_MAX_PATH];
 	GetCurrentMap(buffer, sizeof(buffer));
 	BuildPath(Path_SM, buffer, sizeof(buffer), "translations/_maps/%s.txt", buffer);
-	FlushQueue(exportQueue, buffer);
+	FlushQueue(g_ExportQueue, buffer);
 	
 	ReplyToCommand(client, "Forced export queue flush");
 	return Plugin_Handled;
@@ -307,61 +300,9 @@ public void OnMapEnd()
 	char path[PLATFORM_MAX_PATH];
 	GetCurrentMap(path, sizeof(path));
 	BuildPath(Path_SM, path, sizeof(path), "translations/_maps/%s.txt", path);
-	FlushQueue(exportQueue, path);
+	FlushQueue(g_ExportQueue, path);
 
 	MO_UnloadTranslations();
-}
-
-void LoadDetours()
-{
-	GameData gamedata = new GameData("map-translator.games");
-	if (!gamedata)
-		SetFailState("Failed to load gamedata");
-
-	RegMessageDetour(gamedata, "CGameText::Display", 
-		Detour_GameTextDisplayPre, Detour_GameTextDisplayPost, "game_text");
-	RegMessageDetour(gamedata, "CEnvHudHint::InputShowHudHint", 
-		Detour_HudHintShowPre, Detour_HudHintShowPost, "env_hudhint");
-
-	if (game == GAME_NMRIH)
-	{
-		RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage", 
-			Detour_PointMessageMpPre, Detour_PointMessageMpPost, "point_message_multiplayer");
-
-		RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint", 
-			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
-	}
-
-	delete gamedata;
-}
-
-void RegMessageDetour(GameData gd, const char[] fnName, DHookCallback pre, DHookCallback post, const char[] entityName)
-{
-	DynamicDetour detour;
-	detour = DynamicDetour.FromConf(gd, fnName);
-	if (!detour) {
-		LogError("Failed to detour %s. Unsupported game or outdated plugin. '%s' won't be translated. ", fnName, entityName);
-	} else {
-		detour.Enable(Hook_Pre, pre);
-		detour.Enable(Hook_Post, post);
-	}
-	delete detour;
-}
-
-int LearnMessageEntity(const char[] classname, const char[] propName, ArrayStack stack)
-{
-	int count;
-	char text[MAX_USERMSG_LEN];
-	int e = -1;
-	while ((e = FindEntityByClassname(e, classname)) != -1)
-	{
-		if (GetEntityHammerID(e) && GetEntPropString(e, Prop_Data, propName, text, sizeof(text)))
-		{
-			stack.PushString(text);
-			count++;
-		}
-	}
-	return count;
 }
 
 int ZPS_LearnObjectives(ArrayStack stack)
@@ -446,54 +387,6 @@ int NMRiH_LearnObjectives(const char[] mapName, ArrayStack stack)
 	return objectivesCount;
 }
 
-MRESReturn Detour_GameTextDisplayPre(int gametext)
-{
-	activeGameText = gametext;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_GameTextDisplayPost(int gametext)
-{
-	activeGameText = -1;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_HudHintShowPre(int envhint)
-{
-	activeEnvHint = envhint;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_HudHintShowPost(int envhint)
-{
-	activeEnvHint = -1;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_PointMessageMpPre(int pointText)
-{
-	activePointTextMp = pointText;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_PointMessageMpPost(int pointText)
-{
-	activePointTextMp = -1;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_InstructorHintShowPre(int envhint)
-{
-	activeInstructor = envhint;
-	return MRES_Ignored;
-}
-
-MRESReturn Detour_InstructorHintShowPost(int envhint)
-{
-	activeInstructor = -1;
-	return MRES_Ignored;
-}
-
 bool IsNumericalString(const char[] str)
 {
 	int value;
@@ -511,6 +404,7 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 	kv.SetEscapeSequences(true);
 	kv.ImportFromFile(path);
 
+	int count = 0;
 	char buffer[MAX_USERMSG_LEN], md5[MAX_MD5_LEN];
 	while (!stack.Empty)
 	{
@@ -538,20 +432,20 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 				kv.SetString(langCodes[i], buffer);
 		}
 		
+		count++;
 		kv.GoBack();
 	}
 
 	kv.Rewind();
 	kv.ExportToFile(path);
+
+	delete kv;
+
+	PrintToServer("Exported %d phrases", count);
 }
 
 Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
 {
-	if (activeInstructor == -1 || !GetEntityHammerID(activeInstructor))
-	{
-		return Plugin_Continue;
-	}
-
 	// Instructor has 2 texts, one specific to the !activator
 	// and one to everyone else.
 
@@ -563,7 +457,6 @@ Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroad
 	bool missingBaseHint = false;
 	if (!MO_TranslationPhraseExists(baseMd5))
 	{
-		exportQueue.PushString(baseText);
 		missingBaseHint = true;
 	}
 
@@ -576,7 +469,6 @@ Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroad
 	// TODO: This might create a duplicate hint if the activator is the same as the base
 	if (!MO_TranslationPhraseExists(activatorMd5))
 	{
-		exportQueue.PushString(activatorText);
 		missingActivatorHint = true;
 	}
 
@@ -632,7 +524,6 @@ Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int p
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
 
@@ -651,12 +542,6 @@ Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int p
 
 Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
-	if (activeEnvHint == -1 || !GetEntityHammerID(activeEnvHint))
-	{
-		// PrintToServer("Ignoring env_hudhint %d, no hammer ID", activeEnvHint);
-		return Plugin_Continue;
-	}
-
 	int dunnoByte = bf.ReadByte(); // I dunno..
 	
 	static char text[MAX_KEYHINT_LEN];
@@ -671,7 +556,6 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
 
@@ -716,12 +600,6 @@ Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int 
 
 Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
-	if (activePointTextMp == -1 || !GetEntityHammerID(activePointTextMp))
-	{
-		// PrintToServer("Ignoring game_text %d, no hammer ID", activeEnvHint);
-		return Plugin_Continue;
-	}
-
 	static char text[MAX_POINTTEXTMP_LEN];
 	if (bf.ReadString(text, sizeof(text)) <= 0)
 		return Plugin_Continue;
@@ -731,7 +609,6 @@ Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] playe
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
 
@@ -776,12 +653,6 @@ Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] playe
 
 Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
 {
-	if (activeGameText == -1 || !GetEntityHammerID(activeGameText))
-	{
-		// PrintToServer("Ignoring game_text %d, no hammer ID", activeEnvHint);
-		return Plugin_Continue;
-	}
-
 	int channel = msg.ReadByte();
 	float x = msg.ReadFloat();
 	float y = msg.ReadFloat();
@@ -808,7 +679,6 @@ Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playe
 
 	if (!MO_TranslationPhraseExists(md5))
 	{
-		exportQueue.PushString(text);
 		return Plugin_Continue;
 	}
 	
@@ -1068,11 +938,6 @@ void Translate_HudMsg(DataPack data)
 		bf.WriteString(didTranslate ? translated : original);
 		EndMessage();
 	}
-}
-
-int GetEntityHammerID(int entity)
-{
-	return GetEntProp(entity, Prop_Data, "m_iHammerID");
 }
 
 void SeekFileTillChar(File file, char c)
