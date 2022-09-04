@@ -88,7 +88,9 @@ public void OnMapInit()
 
 		// Ignore entities without a classname, shouldn't happen!
 		char classname[32]; 
-		if (entry.GetNextKey("classname", classname, sizeof(classname)) == -1) {
+		if (entry.GetNextKey("classname", classname, sizeof(classname)) == -1) 
+		{
+			delete entry;
 			continue;
 		}
 
@@ -116,7 +118,7 @@ public void OnMapInit()
 			}
 		}
 
-		// Now find entities that modify other text entities (e.g. "OnTrigger textent AddOutput message 123")
+		// Now find keyvalues that modify other text entities (e.g. "OnTrigger" "textent, AddOutput, message 123")
 		int maxEntries = entry.Length;
 		for (int j = 0; j < maxEntries; j++)
 		{
