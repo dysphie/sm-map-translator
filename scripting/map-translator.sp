@@ -20,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.8"
+#define PLUGIN_VERSION "0.3.9"
 
 #define PREFIX "[Map Translator] "
 
@@ -543,6 +543,7 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 
 	kv.Rewind();
 	kv.ExportToFile(path);
+	delete kv;
 }
 
 Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
