@@ -41,7 +41,7 @@
 			"CPointMessageMultiplayer::SendMessage"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x50\x53\x8B\xD9\x33\xC0\xB9\x01\x00\x00"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x48\x33\xC0\x89\x4D\xF8\x38\x81\x88\x03\x00\x00"
 				"linux"		"@_ZN24CPointMessageMultiplayer11SendMessageEP11CBasePlayer"
 			}
 
@@ -52,10 +52,7 @@
 				"linux"		"@_ZN18CEnvInstructorHint13InputShowHintER11inputdata_t"
 			}
 		}
-	}
 
-	"nmrih"
-	{
 		"Functions"
 		{
 			"CEnvInstructorHint::InputShowHint"
