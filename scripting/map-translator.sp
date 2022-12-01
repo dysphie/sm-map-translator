@@ -20,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.10"
+#define PLUGIN_VERSION "0.3.11"
 
 #define PREFIX "[Map Translator] "
 
@@ -206,6 +206,12 @@ public void OnPluginStart()
 
 	translations = new StringMap();
 	exportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
+
+	for (int i = 1; i <= MaxClients; i++) {
+		if (IsClientConnected(i)) {
+			OnClientConnected(i);
+		}
+	}
 }
 
 public void OnClientConnected(int client)
