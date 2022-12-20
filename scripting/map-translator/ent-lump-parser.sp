@@ -67,7 +67,6 @@ void KvGetStringArray(KeyValues kv, const char[] key, ArrayList dest, Regex rege
 	kv.GetString(key, buffer, sizeof(buffer));
 	
 	int numStrings = regex.MatchAll(buffer);
-	PrintToServer("Got %d exploded strings for %s", numStrings, key);
 	for (int i = 0; i < numStrings; i++)
 	{
 		regex.GetSubString(i, buffer, sizeof(buffer));
@@ -146,7 +145,7 @@ public void OnMapInit()
 			char targetClassname[64];
 			if (nameToClass.GetString(target, targetClassname, sizeof(targetClassname)))
 			{
-				// If it is, check whether we're modifying its text via text-modifying inputs 
+				// If it is, check whether we're modifying its text via inputs 
 				// (e.g. 'SetCaption') or 'AddOutput <key> <value>' to it
 
 				if (StrEqual(inputName, "AddOutput"))
@@ -207,7 +206,7 @@ void AddToTranslatables(const char[] text)
 	g_ExportQueue.PushString(text);
 }
 
-// Taken from nosoop's repo
+// Thanks to nosoop for this snippet
 // https://github.com/nosoop/SMExt-EntityLump/blob/main/sourcepawn/entitylump_native_test.sp#L100
 bool ParseEntityOutputString(const char[] output, char[] targetName, int targetNameLength,
 		char[] inputName, int inputNameLength, char[] variantValue, int variantValueLength,

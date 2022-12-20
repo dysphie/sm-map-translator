@@ -20,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "0.3.8"
+#define PLUGIN_VERSION "1.3.11"
 
 #define PREFIX "[Map Translator] "
 
@@ -37,19 +37,21 @@ ArrayStack g_ExportQueue;
 
 #include "map-translator/ent-lump-parser.sp"
 
-int game;
+int g_Game = GAME_UNKNOWN;
 
 ConVar cvIgnoreNumerical;
 ConVar cvTargetLangs;
 ConVar cvDefaultLang;
 
-char clientLang[MAXPLAYERS+1][MAX_LANGCODE_LEN];
+bool g_Lateloaded;
 
-StringMap translations;
+char g_ClientLangCode[MAXPLAYERS+1][MAX_LANGCODE_LEN];
+
+StringMap g_Translations;
 
 void MO_UnloadTranslations()
 {
-	translations.Clear();
+	g_Translations.Clear();
 }
 
 void MO_LoadTranslations(const char[] path)
@@ -88,7 +90,7 @@ void MO_LoadTranslations(const char[] path)
 			// PluginMessage("Keyvalue: \"%s\" \"%s\"", code, phrase);
 		}
 		while (kv.GotoNextKey(false));
-		translations.SetValue(md5, langs);
+		g_Translations.SetValue(md5, langs);
 		kv.GoBack();
 	}
 	while (kv.GotoNextKey());
@@ -99,17 +101,19 @@ void MO_LoadTranslations(const char[] path)
 bool MO_TranslationPhraseExists(const char[] md5)
 {
 	StringMap value;
-	return translations.GetValue(md5, value);
+	return g_Translations.GetValue(md5, value);
 }
 
 bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxlen)
 {
 	StringMap langs;
-	if (!translations.GetValue(md5, langs))
+	if (!g_Translations.GetValue(md5, langs)) {
 		return false;
+	}
 	
-	if (langs.GetString(clientLang[client], buffer, maxlen))
+	if (langs.GetString(g_ClientLangCode[client], buffer, maxlen)) {
 		return true;
+	}
 
 	static char fallback[MAX_LANGCODE_LEN];
 	cvDefaultLang.GetString(fallback, sizeof(fallback));
@@ -118,11 +122,10 @@ bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxl
 
 public void OnConfigsExecuted()
 {
-	AddCommandListener(Command_ReloadTranslations, "sm_reload_translations");
-
 	char mapName[PLATFORM_MAX_PATH];
-	if (!GetCurrentMap(mapName, sizeof(mapName)))
+	if (!GetCurrentMap(mapName, sizeof(mapName))) {
 		return;	
+	}
 
 	char path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, path, sizeof(path), "translations/_maps/%s.txt", mapName);
@@ -133,11 +136,11 @@ public void OnConfigsExecuted()
 	// This won't pick up everything, but it's a good baseline
 	// We'll also learn the map as it's played and save again in OnMapEnd
 
-	if (game == GAME_ZPS)
+	if (g_Game == GAME_ZPS)
 	{
 		ZPS_LearnObjectives(g_ExportQueue);
 	}
-	else if (game == GAME_NMRIH)
+	else if (g_Game == GAME_NMRIH)
 	{
 		NMRiH_LearnObjectives(mapName, g_ExportQueue);
 	}
@@ -145,14 +148,27 @@ public void OnConfigsExecuted()
 	FlushQueue(g_ExportQueue, path);
 }
 
+public void OnClientLanguageChanged(int client, int language)
+{
+	GetLanguageInfo(language, g_ClientLangCode[client], sizeof(g_ClientLangCode[]));
+}
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	g_Lateloaded = late;
+	return APLRes_Success;
+}
+
 public void OnPluginStart()
 {
+	AddCommandListener(Command_ReloadTranslations, "sm_reload_translations");
+
 	char path[PLATFORM_MAX_PATH];
 	GetGameFolderName(path, sizeof(path));
 	if (StrEqual(path, "zps")) {
-		game = GAME_ZPS;
+		g_Game = GAME_ZPS;
 	} else if (StrEqual(path, "nmrih")) {
-		game = GAME_NMRIH;
+		g_Game = GAME_NMRIH;
 	}
 
 	Parser_OnPluginStart();
@@ -164,6 +180,9 @@ public void OnPluginStart()
 	RegAdminCmd("mt_force_export", Command_ForceExport, ADMFLAG_ROOT,
 		"Force the plugin to export any learned translations right now");
 
+	RegAdminCmd("mt_debug_clients", Command_DebugClients, ADMFLAG_ROOT,
+		"Prints the currently perceived language code for each client");
+
 	cvIgnoreNumerical = CreateConVar("mt_ignore_numerical", "1", 
 		"Don't translate or learn fully numerical messages such as codes, countdowns, etc.");
 
@@ -173,7 +192,7 @@ public void OnPluginStart()
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
 		"Clients whose language is not translated will see messages in this language");
 
-	if (game == GAME_NMRIH)
+	if (g_Game == GAME_NMRIH)
 	{
 		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
 		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);
@@ -184,7 +203,7 @@ public void OnPluginStart()
 	{
 		AutoExecConfig(true, "plugin.map-translator");
 
-		if (game == GAME_ZPS)
+		if (g_Game == GAME_ZPS)
 		{
 			HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
 		}
@@ -197,18 +216,43 @@ public void OnPluginStart()
 	if (!DirExists(path) && !CreateDirectory(path, 0o770))
 		SetFailState("Failed to create required directory: %s", path);
 
-	translations = new StringMap();
+	g_Translations = new StringMap();
 	g_ExportQueue = new ArrayStack(ByteCountToCells(MAX_USERMSG_LEN));
+
+	if (g_Lateloaded)
+	{
+		for (int client = 1; client <= MaxClients; client++)
+		{
+			if (IsClientInGame(client))
+			{
+				OnClientLanguageChanged(client, GetClientLanguage(client));
+			}
+		}
+	}
 }
 
-public void OnClientConnected(int client)
+Action Command_DebugClients(int client, int args)
 {
-	GetLanguageInfo(GetClientLanguage(client), clientLang[client], sizeof(clientLang[]));
-}
+	int count = GetClientCount();
+	if (!count) 
+	{
+		ReplyToCommand(client, "No clients found.");
+		return Plugin_Handled;
+	}
 
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i))
+		{
+			ReplyToCommand(client, "%N: %s", i, g_ClientLangCode[i]);
+		}
+	}
+
+	return Plugin_Handled;
+}
 Action Command_LearnAll(int client, int args)
 {
-	if (game != GAME_NMRIH)
+	if (g_Game != GAME_NMRIH)
 	{
 		ReplyToCommand(client, "This command is only supported in No More Room in Hell");
 		return Plugin_Handled;
@@ -308,8 +352,9 @@ public void OnMapEnd()
 int ZPS_LearnObjectives(ArrayStack stack)
 {
 	int oblist = FindEntityByClassname(-1, "info_objective_list");
-	if (oblist == -1)
+	if (oblist == -1) {
 		return 0;
+	}
 
 	int count;
 	char buffer[256];
@@ -333,8 +378,9 @@ int NMRiH_LearnObjectives(const char[] mapName, ArrayStack stack)
 
 	// Starts here
 	File f = OpenFile(path, "rb", true, NULL_STRING);
-	if (!f)
+	if (!f) {
 		return 0;
+	}
 
 	int header,version;
 	f.ReadInt8(header);
@@ -514,16 +560,16 @@ Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int p
 	int dunnoByte = bf.ReadByte(); // I dunno..
 	
 	static char text[MAX_KEYHINT_LEN];
-	if (bf.ReadString(text, sizeof(text)) <= 0)
+	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
+	}
 
 	// PrintToServer("UserMsg_ObjectiveState: %d %s", dunnoByte, text);
 
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
-	if (!MO_TranslationPhraseExists(md5))
-	{
+	if (!MO_TranslationPhraseExists(md5)) {
 		return Plugin_Continue;
 	}
 
@@ -545,8 +591,9 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 	int dunnoByte = bf.ReadByte(); // I dunno..
 	
 	static char text[MAX_KEYHINT_LEN];
-	if (bf.ReadString(text, sizeof(text)) <= 0)
+	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
+	}
 
 	// PrintToServer("UserMsg_KeyHintText: %s", text);
 
@@ -554,8 +601,7 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 
 	Crypt_MD5(text, md5, sizeof(md5));
 
-	if (!MO_TranslationPhraseExists(md5))
-	{
+	if (!MO_TranslationPhraseExists(md5)) {
 		return Plugin_Continue;
 	}
 
@@ -575,16 +621,18 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	char text[MAX_OBJNOTIFY_LEN];
-	if (bf.ReadString(text, sizeof(text)) <= 0)
+	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
+	}
 
 	char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
 	// Don't push anything to queue here, we learn objectives
 	// thru the .nmo, not at runtime
-	if (!MO_TranslationPhraseExists(md5))
+	if (!MO_TranslationPhraseExists(md5)) {
 		return Plugin_Continue;
+	}
 
 	DataPack data = new DataPack();
 	data.WriteString(text);
@@ -601,14 +649,14 @@ Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int 
 Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
 	static char text[MAX_POINTTEXTMP_LEN];
-	if (bf.ReadString(text, sizeof(text)) <= 0)
+	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
+	}
 
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
-	if (!MO_TranslationPhraseExists(md5))
-	{
+	if (!MO_TranslationPhraseExists(md5)) {
 		return Plugin_Continue;
 	}
 
@@ -671,14 +719,14 @@ Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playe
 	float fxTime = msg.ReadFloat();
 
 	static char text[MAX_HUDMSG_LEN];
-	if (msg.ReadString(text, sizeof(text)) <= 0)
+	if (msg.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
+	}
 
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
-	if (!MO_TranslationPhraseExists(md5))
-	{
+	if (!MO_TranslationPhraseExists(md5)) {
 		return Plugin_Continue;
 	}
 	
