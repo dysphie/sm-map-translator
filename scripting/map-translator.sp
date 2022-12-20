@@ -153,6 +153,11 @@ public void OnClientLanguageChanged(int client, int language)
 	GetLanguageInfo(language, g_ClientLangCode[client], sizeof(g_ClientLangCode[]));
 }
 
+public void OnClientDisconnect(int client)
+{
+	g_ClientLangCode[client][0] = '\0';
+}
+
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	g_Lateloaded = late;
