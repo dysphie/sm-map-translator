@@ -28,7 +28,7 @@ void WalkConfig()
 	Regex expr = new Regex("[\\w]+"); // A space-separated list of words
 
 	char path[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, path, sizeof(path), "configs/map-translator.cfg");
+	BuildPath(Path_SM, path, sizeof(path), "data/map-translator.cfg");
 	KeyValues kv = new KeyValues("MapTranslator");
 
 	if (!kv.ImportFromFile(path))
