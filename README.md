@@ -1,25 +1,27 @@
 # [NMRiH/ZPS] Map Translator
 
+Translates map texts via translation files, allowing players to see messages in their preferred language. 
 
-Provides a way to translate maps via translation files, allowing players to see messages in their preferred language. 
+The following texts are supported:
 
-The following are supported:
+- [game_text](https://developer.valvesoftware.com/wiki/Game_text)
+- [env_hudhint](https://developer.valvesoftware.com/wiki/Env_hudhint)
+- Objectives (**NMRiH** and **ZPS** only)
+- point_message_multiplayer (**NMRiH** only)
 
-| Objectives | Game text | HUD Hints |
-|------------|-----------|-----------|
-| ![image](https://user-images.githubusercontent.com/11559683/127247238-c190ae46-24ac-453f-9e59-983bf2e5ba2f.png)<br />![image](https://user-images.githubusercontent.com/11559683/128650387-7bfd2a74-5546-4f26-b63f-5af802d8666a.png) | ![image](https://user-images.githubusercontent.com/11559683/127247367-37e055ee-9c63-42c8-948d-ec4aeae1166f.png)<br />![image](https://user-images.githubusercontent.com/11559683/128650505-3c7aa042-121d-43f9-82a8-2614b9074418.png)       | ![image](https://user-images.githubusercontent.com/11559683/127247508-0e1fd033-9414-47f8-879c-d5bbd6336fec.png)       |
+
 
 
 
 ## Installation
 
-- Install [DHooks2](https://github.com/peace-maker/DHooks2#installation).
+- Install [Sourcemod 1.11.6924 or higher](https://www.sourcemod.net/downloads.php?branch=stable).
 - Grab the latest [release ZIP](https://github.com/dysphie/sm-map-translator/releases) and extract to `addons/sourcemod`.
-- Reload the server to reflect the changes.
+- Refresh your plugins (`sm plugins refresh` in server console)
 
 ## Usage
 
-- Navigate to `cfg/sourcemod` and open `plugin.map-translator.cfg` with a text editor.
+- Navigate to `cfg/sourcemod` and open `plugin.map-translator.cfg` (`plugin.nmrih-map-translator.cfg` in NMRiH)
 - Set `mt_autolearn_langs` to a space-separated list of language codes you wish to generate translations for. 
 
 	```cpp
@@ -30,7 +32,8 @@ The following are supported:
 	<sup>Note: You can see the full list of language codes at `addons/sourcemod/configs/languages.cfg`</sup>
 
 
-- The plugin will now learn maps as they're played, and dump translatable content to `addons/sourcemod/translations/_maps/mapname.txt`:
+- The plugin will now create translation files for maps as they're loaded. 
+They're stored in `addons/sourcemod/translations/_maps`
 
 	```cpp
 	"Phrases"
@@ -44,7 +47,7 @@ The following are supported:
 	}
 	```
 
-- You can then edit these files to change the message printed for each language.
+	You can then edit these files to change the message printed for each language.
 
 	```cpp
 	"Phrases"
@@ -58,13 +61,11 @@ The following are supported:
 	}
 	```
 	
-	<sup>Note: Some maps might require multiple playthroughs to be fully learned.</sup>
-
 
 ## Helper Command
 
 - `mt_bulk_learn_nmo`
-	- You can use this command to speed up the learning process and generate translation files for every map on the server without loading them in. The generated files will only include objective messages.
+	- Learns objective messages for every map without loading them in.
 
 
 ## Optional CVars
@@ -88,6 +89,6 @@ CVars are always read from `cfg/sourcemod/plugin.map-translator.cfg`
 	```
 
 - This plugin is incompatible with [Multilingual Objectives](https://forums.alliedmods.net/showthread.php?p=2678257) and [Multilingual Objective Beta](https://forums.alliedmods.net/showthread.php?p=2305894).
-- You are not expected to manually add new entries, only edit existing — if a specific text is not getting picked up, please [file an issue](https://github.com/dysphie/nmrih-map-translator/issues). 
+- You are not expected to manually add new entries, only edit existing — if a specific text is not getting picked up, please [create an issue](https://github.com/dysphie/nmrih-map-translator/issues). 
 	However, nothing will break if you do, the section name (e.g. `edf566344eb9f2cb892e073e70c70181`) is just an [MD5 hash](https://www.md5hashgenerator.com) of the original text.
 
