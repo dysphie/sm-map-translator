@@ -54,9 +54,9 @@ They're stored in `addons/sourcemod/translations/_maps`
 	{
 		"edf566344eb9f2cb892e073e70c70181"
 		{
-			"en"		"Destroy the puppet please it's scary"
+			"en"		"Get rid of the puppet"
 			"es"		"Destruye la marioneta"
-			"ko"		"꼭두각시를 파괴"
+			"ko"		"인형을 파괴해"
 		}
 	}
 	```
