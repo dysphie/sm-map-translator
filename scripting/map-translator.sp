@@ -20,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "1.3.12"
+#define PLUGIN_VERSION "1.3.13"
 
 #define PREFIX "[Map Translator] "
 
@@ -192,6 +192,9 @@ public void OnPluginStart()
 	CreateConVar("mt_version", PLUGIN_VERSION, "Map Translator by Dysphie.",
 		FCVAR_NOTIFY | FCVAR_SPONLY | FCVAR_DONTRECORD | FCVAR_REPLICATED);
 
+	RegAdminCmd("mt_forcelang", Command_SetLang, ADMFLAG_ROOT,
+		"Forces your perceived language to the given language code");
+
 	RegAdminCmd("mt_bulk_learn_nmo", Command_LearnAll, ADMFLAG_ROOT);
 	RegAdminCmd("mt_force_export", Command_ForceExport, ADMFLAG_ROOT,
 		"Force the plugin to export any learned translations right now");
@@ -211,7 +214,8 @@ public void OnPluginStart()
 	if (g_Game == GAME_NMRIH)
 	{
 		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
-		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotify, true);
+		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotifyOrUpdate, true);
+		HookUserMessage(GetUserMessageId("ObjectiveUpdate"), UserMsg_ObjectiveNotifyOrUpdate, true);
 		HookUserMessage(GetUserMessageId("PointMessage"), UserMsg_PointMessageMultiplayer, true);
 		HookEvent("instructor_server_hint_create", Event_InstructorHintCreate, EventHookMode_Pre);
 	}
@@ -245,6 +249,32 @@ public void OnPluginStart()
 			}
 		}
 	}
+}
+
+Action Command_SetLang(int client, int args)
+{
+	if (args < 1)
+	{
+		ReplyToCommand(client, "Usage: mt_forcelang <language code>");
+		return Plugin_Handled;
+	}
+
+	char langCode[MAX_LANGCODE_LEN];
+	GetCmdArg(1, langCode, sizeof(langCode));
+
+	int langId = GetLanguageByCode(langCode);
+	if (langId == -1) 
+	{
+		ReplyToCommand(client, "Invalid language code \"%s\"", langCode);
+		return Plugin_Handled;
+	}
+
+	char langName[64];
+	GetLanguageInfo(langId, g_ClientLangCode[client], 
+		sizeof(g_ClientLangCode[]), langName, sizeof(langName));
+
+	ReplyToCommand(client, "Set language to %s", langName);
+	return Plugin_Handled;
 }
 
 Action Command_DebugClients(int client, int args)
@@ -627,8 +657,11 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 	return Plugin_Handled;
 }
 
-Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
+Action UserMsg_ObjectiveNotifyOrUpdate(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
+	char msgName[17];
+	GetUserMessageName(msg, msgName, sizeof(msgName));
+
 	char text[MAX_OBJNOTIFY_LEN];
 	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
@@ -647,11 +680,12 @@ Action UserMsg_ObjectiveNotify(UserMsg msg, BfRead bf, const int[] players, int 
 	data.WriteString(text);
 	data.WriteString(md5);
 	data.WriteCell(playersNum);
+	data.WriteString(msgName);
 
 	for(int i; i < playersNum; i++)
 		data.WriteCell(GetClientSerial(players[i]));
 
-	RequestFrame(Translate_ObjectiveNotify, data);
+	RequestFrame(TranslateObjectiveShared, data);
 	return Plugin_Handled;
 }
 
@@ -896,7 +930,7 @@ void Translate_ObjectiveState(DataPack data)
 	delete data;
 }
 
-void Translate_ObjectiveNotify(DataPack data)
+void TranslateObjectiveShared(DataPack data)
 {
 	data.Reset();
 
@@ -908,6 +942,9 @@ void Translate_ObjectiveNotify(DataPack data)
 
 	int playersNum = data.ReadCell();
 
+	char msgName[32];
+	data.ReadString(msgName, sizeof(msgName));
+
 	for (int i; i < playersNum; i++)
 	{
 		int client = GetClientFromSerial(data.ReadCell());
@@ -917,7 +954,7 @@ void Translate_ObjectiveNotify(DataPack data)
 		char translated[PLATFORM_MAX_PATH];
 		bool didTranslate = MO_TranslateForClient(client, md5, translated, sizeof(translated));
 
-		Handle msg = StartMessageOne("ObjectiveNotify", client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
+		Handle msg = StartMessageOne(msgName, client, USERMSG_RELIABLE|USERMSG_BLOCKHOOKS);
 		BfWrite bf = UserMessageToBfWrite(msg);
 		bf.WriteString(didTranslate ? translated : original);
 		EndMessage();
