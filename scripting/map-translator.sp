@@ -65,6 +65,7 @@ void MO_UnloadTranslations()
 	}
 
 	delete snap;
+	g_Translations.Clear();
 }
 
 void MO_LoadTranslations(const char[] path)
@@ -82,8 +83,6 @@ void MO_LoadTranslations(const char[] path)
 		char md5[MAX_MD5_LEN];
 		kv.GetSectionName(md5, sizeof(md5));
 		StrToLower(md5);
-
-		// PrintToServer("Section: \"%s\"", md5);
 
 		StringMap langs;
 
@@ -113,8 +112,7 @@ void MO_LoadTranslations(const char[] path)
 
 bool MO_TranslationPhraseExists(const char[] md5)
 {
-	StringMap value;
-	return g_Translations.GetValue(md5, value);
+	return g_Translations.ContainsKey(md5);
 }
 
 bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxlen)
@@ -332,7 +330,6 @@ void LearnMapsFrame(DataPack data)
 	{
 		BuildPath(Path_SM, buffer, sizeof(buffer), "translations/_maps/%s.txt", buffer);
 		FlushQueue(temp, buffer);
-		// PrintToServer("Wrote: %s", buffer);
 	}
 	delete temp;
 	
@@ -343,10 +340,11 @@ void LearnMapsFrame(DataPack data)
 
 Action Command_ReloadTranslations(int client, const char[] command, int argc)
 {
+	MO_UnloadTranslations();
+
 	char mapName[PLATFORM_MAX_PATH];
 	if (GetCurrentMap(mapName, sizeof(mapName)))
 	{
-		MO_UnloadTranslations();
 
 		char path[PLATFORM_MAX_PATH];
 		BuildPath(Path_SM, path, sizeof(path), "translations/_maps/%s.txt", mapName);
@@ -489,7 +487,6 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 			// Don't override existing
 			if (kv.JumpToKey(langCodes[i]))
 			{
-				// PrintToServer("key %s is already populated ignoring", langCodes[i]);
 				kv.GoBack();
 			}
 			else
@@ -504,8 +501,6 @@ void FlushQueue(ArrayStack& stack, const char[] path)
 	kv.ExportToFile(path);
 
 	delete kv;
-
-	// PrintToServer("Exported %d phrases", count);
 }
 
 Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
@@ -582,8 +577,6 @@ Action UserMsg_ObjectiveState(UserMsg msg, BfRead bf, const int[] players, int p
 		return Plugin_Continue;
 	}
 
-	// PrintToServer("UserMsg_ObjectiveState: %d %s", dunnoByte, text);
-
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
@@ -612,8 +605,6 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 	if (bf.ReadString(text, sizeof(text)) <= 0) {
 		return Plugin_Continue;
 	}
-
-	// PrintToServer("UserMsg_KeyHintText: %s", text);
 
 	static char md5[MAX_MD5_LEN];
 
