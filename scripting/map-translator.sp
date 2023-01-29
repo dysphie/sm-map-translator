@@ -20,7 +20,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "1.3.11"
+#define PLUGIN_VERSION "1.3.12"
 
 #define PREFIX "[Map Translator] "
 
@@ -51,7 +51,20 @@ StringMap g_Translations;
 
 void MO_UnloadTranslations()
 {
-	g_Translations.Clear();
+	StringMapSnapshot snap = g_Translations.Snapshot();
+	int maxTranslations = snap.Length;
+
+	char md5[MAX_MD5_LEN];
+	for (int i = 0; i < maxTranslations; i++)
+	{
+		snap.GetKey(i, md5, sizeof(md5));
+
+		StringMap langs;
+		g_Translations.GetValue(md5, langs);
+		delete langs;
+	}
+
+	delete snap;
 }
 
 void MO_LoadTranslations(const char[] path)
