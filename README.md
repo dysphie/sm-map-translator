@@ -1,4 +1,4 @@
-# [NMRiH/ZPS] Map Translator
+# [SM] Map Translator
 
 Translates map texts via translation files, allowing players to see messages in their preferred language. 
 
