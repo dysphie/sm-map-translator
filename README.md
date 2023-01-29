@@ -21,7 +21,9 @@ The following texts are supported:
 
 ## Usage
 
-- Navigate to `cfg/sourcemod` and open `plugin.map-translator.cfg` (`plugin.nmrih-map-translator.cfg` in NMRiH)
+- Navigate to `cfg/sourcemod` and open `plugin.map-translator.cfg` 
+
+	<sup>Note: it's `plugin.nmrih-map-translator.cfg` in NMRiH for backward compatibility</sup>
 - Set `mt_autolearn_langs` to a space-separated list of language codes you wish to generate translations for. 
 
 	```cpp
