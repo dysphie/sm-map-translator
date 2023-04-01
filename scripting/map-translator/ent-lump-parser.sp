@@ -121,7 +121,7 @@ public void OnMapInit()
 				// If the field is present and has a value, save it
 				if (key[0] && entry.GetNextKey(key, value, sizeof(value)) != -1 && value[0])
 				{
-					AddToTranslatables(value);
+					LearnNewText(value);
 				}
 			}
 		}
@@ -201,7 +201,7 @@ public void OnMapInit()
 					// If it is, we save the <value> as another translatable message
 					char newMessage[MAX_VALUE];
 					regAddOutput.GetSubString(2, newMessage, sizeof(newMessage));
-					AddToTranslatables(newMessage);
+					LearnNewText(newMessage);
 				}
 			}
 			else
@@ -220,7 +220,7 @@ public void OnMapInit()
 
 					if (StrEqual(inputName, textInput))
 					{
-						AddToTranslatables(variantValue);
+						LearnNewText(variantValue);
 					}
 				} 
 			}
@@ -231,12 +231,6 @@ public void OnMapInit()
 
 	delete textEntsByName;
 	delete regAddOutput;
-}
-
-void AddToTranslatables(const char[] text)
-{
-	//PrintToServer("Translatable: %s", text);
-	g_ExportQueue.PushString(text);
 }
 
 // Thanks to nosoop for this snippet
