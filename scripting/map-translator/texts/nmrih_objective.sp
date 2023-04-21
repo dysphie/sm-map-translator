@@ -61,7 +61,7 @@ void TranslateObjectiveShared(DataPack data)
 	}
 
 	delete data;
-} 
+}
 
 
 int LearnNMOFile(const char[] mapName, ArrayStack stack)
@@ -80,7 +80,7 @@ int LearnNMOFile(const char[] mapName, ArrayStack stack)
 	f.ReadInt8(header);
 	f.ReadInt32(version);
 
-	if (header != 'v' || version != 1) 
+	if (header != 'v' || version != 1)
 	{
 		delete f;
 		return 0;
@@ -90,16 +90,16 @@ int LearnNMOFile(const char[] mapName, ArrayStack stack)
 	f.ReadInt32(objectivesCount);
 
 	// skip antiObjectivesCount and extractionCount
-	f.Seek(8, SEEK_CUR); 
+	f.Seek(8, SEEK_CUR);
 
 	for (int o; o < objectivesCount; o++)
 	{
 		// Skip objective ID
-		f.Seek(4, SEEK_CUR); 
+		f.Seek(4, SEEK_CUR);
 
 		// Skip objective name
 		SeekFileTillChar(f, '\0');
-		
+
 		char description[MAX_USERMSG_LEN];
 		ReadFileString2(f, description, sizeof(description));
 
@@ -108,18 +108,18 @@ int LearnNMOFile(const char[] mapName, ArrayStack stack)
 
 		// Skip objective boundary name
 		SeekFileTillChar(f, '\0');
-		
+
 		// Skip item names
 		int itemCount;
 		f.ReadInt32(itemCount);
 		if (itemCount > 0)
 			while (itemCount--)
-				SeekFileTillChar(f, '\0');		
+				SeekFileTillChar(f, '\0');
 
 		// Skip objective links
 		int linksCount;
 		f.ReadInt32(linksCount);
-		if (linksCount > 0) 
+		if (linksCount > 0)
 			f.Seek(linksCount * 4, SEEK_CUR);
 	}
 

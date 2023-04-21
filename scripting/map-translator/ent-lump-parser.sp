@@ -11,7 +11,6 @@ StringMap g_TextEntInputs;	// Inputs that make this entity change its text
 
 void RegisterTextEntity(const char[] classname, ArrayList keyvalues, ArrayList inputs)
 {
-	//PrintToServer("%s: Registered %d keyvalues and %d inputs", classname, keyvalues.Length, inputs.Length);
 	g_TextEntKeys.SetValue(classname, keyvalues);
 	g_TextEntInputs.SetValue(classname, inputs);
 }
@@ -53,7 +52,7 @@ void WalkConfig()
 
 		KvGetStringArray(kv, "keyvalues", keyvalues, expr);
 		KvGetStringArray(kv, "inputs", inputs, expr);
-		
+
 		RegisterTextEntity(classname, keyvalues, inputs);
 	}
 	while (kv.GotoNextKey());
@@ -66,7 +65,7 @@ void KvGetStringArray(KeyValues kv, const char[] key, ArrayList dest, Regex rege
 {
 	char buffer[1024];
 	kv.GetString(key, buffer, sizeof(buffer));
-	
+
 	int numStrings = regex.MatchAll(buffer);
 	for (int i = 0; i < numStrings; i++)
 	{
@@ -88,13 +87,13 @@ public void OnMapInit()
 	char key[64], value[1024];
 
 	// First pass: Find text entities and save their default message fields
-	for (int i; i < lumpLen; i++) 
+	for (int i; i < lumpLen; i++)
 	{
 		EntityLumpEntry entry = EntityLump.Get(i);
 
 		// Ignore empty classnames, should never happen..
-		char classname[MAX_CLASSNAME]; 
-		if (entry.GetNextKey("classname", classname, sizeof(classname)) == -1) 
+		char classname[MAX_CLASSNAME];
+		if (entry.GetNextKey("classname", classname, sizeof(classname)) == -1)
 		{
 			delete entry;
 			continue;
@@ -131,7 +130,7 @@ public void OnMapInit()
 
 	// Second pass: Find entities that modify our text entity fields, and save the modified fields
 	// For example, a trigger might have "OnTrigger" -> "text_ent, AddOutput, message 123"
-	for (int i; i < lumpLen; i++) 
+	for (int i; i < lumpLen; i++)
 	{
 		EntityLumpEntry entry = EntityLump.Get(i);
 
@@ -145,7 +144,7 @@ public void OnMapInit()
 				continue;
 			}
 
-			// Split value into individual fields 
+			// Split value into individual fields
 			// "text_ent,Display,Hello,0,-1" -> "text_ent", "Display", "Hello", etc.
 			float delay; int fireCount;
 			char target[32], inputName[1024], variantValue[1024];
@@ -182,20 +181,20 @@ public void OnMapInit()
 
 			// There are 2 ways we could be modifying this entity:
 			// 1. A named input, like 'SetCaption <value>'
-			// 2. A raw keyvalue change via 'AddOutput <key> <value>' 
+			// 2. A raw keyvalue change via 'AddOutput <key> <value>'
 
 			if (StrEqual(inputName, "AddOutput"))
 			{
 				if (regAddOutput.Match(variantValue) != 3) { // Base + 2 capture groups
 					continue;
 				}
-				
+
 				char targetedKey[MAX_KEY];
 				regAddOutput.GetSubString(1, targetedKey, sizeof(targetedKey));
 
 				// Check if <key> is one of the entity's text keys
-				ArrayList targetTextKeys; 
-				if (g_TextEntKeys.GetValue(targetClassname, targetTextKeys) && 
+				ArrayList targetTextKeys;
+				if (g_TextEntKeys.GetValue(targetClassname, targetTextKeys) &&
 					targetTextKeys.FindString(targetedKey) != -1)
 				{
 					// If it is, we save the <value> as another translatable message
@@ -207,11 +206,11 @@ public void OnMapInit()
 			else
 			{
 				// Get a list of text-modifying inputs for this entity type
-				ArrayList targetTextInputs; 
+				ArrayList targetTextInputs;
 				if (!g_TextEntInputs.GetValue(target, targetTextInputs)) {
 					continue;
 				}
-				
+
 				int maxTextInputs = targetTextInputs.Length;
 				for (int inputIndex = 0; inputIndex < maxTextInputs; inputIndex++)
 				{
@@ -222,7 +221,7 @@ public void OnMapInit()
 					{
 						LearnNewText(variantValue);
 					}
-				} 
+				}
 			}
 		}
 
@@ -240,7 +239,7 @@ bool ParseEntityOutputString(const char[] output, char[] targetName, int targetN
 		float &delay, int &fireCount) {
 	int delimiter;
 	char buffer[32];
-	
+
 	{
 		// validate that we have something resembling an output string (four commas)
 		int i, c, nDelim;
@@ -252,15 +251,15 @@ bool ParseEntityOutputString(const char[] output, char[] targetName, int targetN
 			return false;
 		}
 	}
-	
+
 	delimiter = SplitString(output, ",", targetName, targetNameLength);
 	delimiter += SplitString(output[delimiter], ",", inputName, inputNameLength);
 	delimiter += SplitString(output[delimiter], ",", variantValue, variantValueLength);
-	
+
 	delimiter += SplitString(output[delimiter], ",", buffer, sizeof(buffer));
 	delay = StringToFloat(buffer);
-	
+
 	fireCount = StringToInt(output[delimiter]);
-	
+
 	return true;
 }

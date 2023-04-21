@@ -5,7 +5,7 @@
 #include <dhooks>
 
 #define MAX_USERMSG_LEN 255
-#define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN 
+#define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN
 #define MAX_KEYHINT_LEN MAX_USERMSG_LEN - 1
 #define MAX_HUDMSG_LEN MAX_USERMSG_LEN - 34
 #define MAX_INSTRUCTOR_LEN MAX_USERMSG_LEN // TODO: Subtract other params
@@ -24,7 +24,7 @@
 
 #define PREFIX "[Map Translator] "
 
-public Plugin myinfo = 
+public Plugin myinfo =
 {
 	name        = "[NMRiH/ZPS] Map Translator",
 	author      = "Dysphie",
@@ -127,7 +127,7 @@ bool MO_TranslateForClient(int client, const char[] md5, char[] buffer, int maxl
 	if (!g_Translations.GetValue(md5, langs) || !langs) {
 		return false;
 	}
-	
+
 	if (langs.GetString(g_ClientLangCode[client], buffer, maxlen)) {
 		return true;
 	}
@@ -141,7 +141,7 @@ public void OnConfigsExecuted()
 {
 	char mapName[PLATFORM_MAX_PATH];
 	if (!GetCurrentMap(mapName, sizeof(mapName))) {
-		return;	
+		return;
 	}
 
 	char path[PLATFORM_MAX_PATH];
@@ -205,14 +205,14 @@ public void OnPluginStart()
 	if (g_Game == GAME_NMRIH) {
 		RegAdminCmd("mt_bulk_learn_nmo", Command_LearnAll, ADMFLAG_ROOT);
 	}
-	
+
 	RegAdminCmd("mt_force_export", Command_ForceExport, ADMFLAG_ROOT,
 		"Force the plugin to export any learned translations right now");
 
 	RegAdminCmd("mt_debug_clients", Command_DebugClients, ADMFLAG_ROOT,
 		"Prints the currently perceived language code for each client");
 
-	cvIgnoreNumerical = CreateConVar("mt_ignore_numerical", "1", 
+	cvIgnoreNumerical = CreateConVar("mt_ignore_numerical", "1",
 		"Don't translate or learn fully numerical messages such as codes, countdowns, etc.");
 
 	cvTargetLangs = CreateConVar("mt_autolearn_langs", "",
@@ -273,14 +273,14 @@ Action Command_SetLang(int client, int args)
 	GetCmdArg(1, langCode, sizeof(langCode));
 
 	int langId = GetLanguageByCode(langCode);
-	if (langId == -1) 
+	if (langId == -1)
 	{
 		ReplyToCommand(client, "Invalid language code \"%s\"", langCode);
 		return Plugin_Handled;
 	}
 
 	char langName[64];
-	GetLanguageInfo(langId, g_ClientLangCode[client], 
+	GetLanguageInfo(langId, g_ClientLangCode[client],
 		sizeof(g_ClientLangCode[]), langName, sizeof(langName));
 
 	ReplyToCommand(client, "Set language to %s", langName);
@@ -290,7 +290,7 @@ Action Command_SetLang(int client, int args)
 Action Command_DebugClients(int client, int args)
 {
 	int count = GetClientCount();
-	if (!count) 
+	if (!count)
 	{
 		ReplyToCommand(client, "No clients found.");
 		return Plugin_Handled;
@@ -337,7 +337,7 @@ Action Command_LearnAll(int client, int args)
 Action Command_ForceExport(int client, int args)
 {
 	char buffer[PLATFORM_MAX_PATH];
-	if (!GetCurrentMap(buffer, sizeof(buffer))) 
+	if (!GetCurrentMap(buffer, sizeof(buffer)))
 	{
 		ReplyToCommand(client, "Can't force export queue flush, not playing a map");
 		return Plugin_Handled;
@@ -376,7 +376,7 @@ void LearnMapsFrame(DataPack data)
 		FlushQueue(buffer);
 	}
 	delete temp;
-	
+
 	data.Reset();
 	data.WriteCell(++cursor);
 	RequestFrame(LearnMapsFrame, data);
@@ -393,7 +393,7 @@ Action Command_ReloadTranslations(int client, const char[] command, int argc)
 		BuildPath(Path_SM, path, sizeof(path), "translations/_maps/%s.txt", mapName);
 		MO_LoadTranslations(path);
 	}
-	
+
 	ReplyToCommand(client, PREFIX ... "Reloaded translations");
 	return Plugin_Continue;
 }
@@ -419,7 +419,7 @@ bool IsNumericalString(const char[] str)
 }
 
 void FlushQueue(const char[] path)
-{	
+{
 	char langCodes[MAX_LANGS][MAX_LANGCODE_LEN];
 	char targetLangs[MAX_LANGS*MAX_LANGCODE_LEN];
 	cvTargetLangs.GetString(targetLangs, sizeof(targetLangs));
@@ -432,7 +432,7 @@ void FlushQueue(const char[] path)
 	int count = 0;
 	char buffer[MAX_USERMSG_LEN], md5[MAX_MD5_LEN];
 
-	while (g_ExportQueue.Empty)
+	while (!g_ExportQueue.Empty)
 	{
 		if (IsNumericalString(buffer) && cvIgnoreNumerical.BoolValue)
 			continue;
@@ -455,7 +455,7 @@ void FlushQueue(const char[] path)
 			else
 				kv.SetString(langCodes[i], buffer);
 		}
-		
+
 		count++;
 		kv.GoBack();
 	}
@@ -471,11 +471,16 @@ void SeekFileTillChar(File file, char c)
 {
 	int i;
 	do {
-		file.ReadInt8(i);
-	} while (i != c);	
+		if (!file.ReadInt8(i))
+		{
+			LogError("ReadInt8 failed at position %d", file.Position);
+			break;
+		}
+	}
+	while (i != c);
 }
 
-/* Similar to ReadFileString, but the file position always ends up at the 
+/* Similar to ReadFileString, but the file position always ends up at the
  * null terminator (https://github.com/alliedmodders/sourcemod/issues/1430)
  */
 void ReadFileString2(File file, char[] buffer, int maxlen)
