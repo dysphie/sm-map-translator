@@ -70,15 +70,16 @@ They're stored in `addons/sourcemod/translations/_maps`
 	- Learns objective messages for every map without loading them in.
 
 
-## Optional CVars
+## CVars
 
-CVars are always read from `cfg/sourcemod/plugin.map-translator.cfg`
+CVars are read from `cfg/sourcemod/plugin.map-translator.cfg`
 
-- `mt_fallback_lang` (Default: `en`)
-  - Fallback language to show to clients whose preferred language has not been translated.
-
-- `mt_ignore_numerical` (Default: `1`)
-  - Whether to attempt to translate and learn fully numerical messages (e.g. "9247").
+| ConVar | Description | Default Value |
+| --- | --- | --- |
+| mt_ignore_numerical | Don't translate or learn fully numerical messages such as codes, countdowns, etc. | 1 |
+| mt_autolearn_langs | Space-separated list of language entries to include in auto generated translation files, for example: `en es ko` | en |
+| mt_fallback_lang | Clients whose language is not translated will see messages in this language | en |
+| mt_extended_learning | Whether the game will learn text entities that have been modified during gameplay. This can improve detection on maps with VScript, but it can also increase memory usage and the size of the generated translation file | 0 |
 
 
 ## Notes
