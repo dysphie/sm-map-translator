@@ -3,6 +3,7 @@
 
 Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroadcast)
 {
+	// Ignore texts that weren't shown by CEnvInstructorHint::InputShowHint, if we can
 	if (instructorDetour && g_ActiveInstructor == -1) {
 		return Plugin_Continue;
 	}
@@ -15,10 +16,12 @@ Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroad
 	char baseMd5[MAX_MD5_LEN];
 	Crypt_MD5(baseText, baseMd5, sizeof(baseMd5));
 
+	bool doRuntimeLearning = cvRunTimeLearn.BoolValue;
+
 	bool missingBaseHint = false;
 	if (!MO_TranslationPhraseExists(baseMd5))
 	{
-		if (instructorDetour) {
+		if (instructorDetour && doRuntimeLearning) {
 			LearnNewText(baseText);
 		}
 
@@ -34,7 +37,7 @@ Action Event_InstructorHintCreate(Event event, const char[] name, bool dontBroad
 	// TODO: This might create a duplicate hint if the activator is the same as the base
 	if (!MO_TranslationPhraseExists(activatorMd5))
 	{
-		if (instructorDetour) {
+		if (instructorDetour && doRuntimeLearning) {
 			LearnNewText(activatorText);
 		}
 

@@ -11,25 +11,29 @@ DynamicDetour hudHintDetour;
 
 void TryEnableDetours()
 {
+	PrintToServer("TryEnableDetours");
 	GameData gamedata = new GameData("map-translator.games");
-	if (!gamedata) 
+	if (!gamedata)
 	{
 		LogMessage("Cannot load gamedata/map-translator.games, real-time learning of text entities and optimizations will be disabled.");
 		return;
 	}
 
-	RegMessageDetour(gamedata, "CGameText::Display", 
+	gameTextDetour = RegMessageDetour(gamedata, "CGameText::Display",
 		Detour_GameTextDisplayPre, Detour_GameTextDisplayPost, "game_text");
 
-	RegMessageDetour(gamedata, "CEnvHudHint::InputShowHudHint", 
+	hudHintDetour = RegMessageDetour(gamedata, "CEnvHudHint::InputShowHudHint",
 		Detour_HudHintShowPre, Detour_HudHintShowPost, "env_hudhint");
 
+	PrintToServer("game is %d", g_Game);
 	if (g_Game == GAME_NMRIH)
 	{
-		RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage", 
+		pointTextDetour = RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage",
 			Detour_PointMessageMpPre, Detour_PointMessageMpPost, "point_message_multiplayer");
 
-		RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint", 
+		PrintToServer("pointTextDetour after detour: %d", pointTextDetour);
+
+		hudHintDetour = RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint",
 			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
 	}
 
@@ -41,15 +45,16 @@ DynamicDetour RegMessageDetour(GameData gd, const char[] fnName, DHookCallback p
 	DynamicDetour detour;
 	detour = DynamicDetour.FromConf(gd, fnName);
 	if (!detour) {
-		LogMessage("Outdated gamedata for \"%s\". Some '%s' entities might not be translated. ", fnName, entityName);
+		LogMessage("Outdated gamedata for \"%s\". Optimizations and runtime learning of '%s' is disabled. ", fnName, entityName);
 	} else {
 		detour.Enable(Hook_Pre, pre);
 		detour.Enable(Hook_Post, post);
 	}
-	
+
 	return detour;
 }
 
+// These help us discard texts that were sent by other plugins
 MRESReturn Detour_GameTextDisplayPre(int gametext)
 {
 	g_ActiveGameText = gametext;

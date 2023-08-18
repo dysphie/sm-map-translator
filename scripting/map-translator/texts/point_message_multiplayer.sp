@@ -1,8 +1,7 @@
 
 Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
-	// If we are detouring CPointMessageMultiplayer::SendMessage and it's not in scope
-	// we can bail early and avoid computing the MD5 hash altogether
+	// Ignore texts that weren't shown by CPointMessageMultiplayer::SendMessage, if we can
 	if (pointTextDetour && g_ActivePointText == -1) {
 		return Plugin_Continue;
 	}
@@ -19,14 +18,14 @@ Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] playe
 
 		// Only learn this if we are in CPointMessageMultiplayer::SendMessage
 		// Ignore other plugin messages
-		if (pointTextDetour) {
+		if (pointTextDetour && cvRunTimeLearn.BoolValue) {
 			LearnNewText(text);
 		}
 
 		return Plugin_Continue;
 	}
 
-	int entity = bf.ReadShort();
+	int id = bf.ReadShort();
 	int flags = bf.ReadShort();
 
 	float coord[3];
@@ -40,11 +39,14 @@ Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] playe
 	int r = bf.ReadByte();
 	int g = bf.ReadByte();
 	int b = bf.ReadByte();
-	
+
+	int moveParent = bf.ReadShort();
+	float heightOffset = bf.ReadFloat();
+
 	DataPack data = new DataPack();
 	data.WriteString(text);
 	data.WriteString(md5);
-	data.WriteCell(entity);
+	data.WriteCell(id);
 	data.WriteCell(flags);
 	data.WriteFloat(coord[0]);
 	data.WriteFloat(coord[1]);
@@ -54,6 +56,8 @@ Action UserMsg_PointMessageMultiplayer(UserMsg msg, BfRead bf, const int[] playe
 	data.WriteCell(r);
 	data.WriteCell(g);
 	data.WriteCell(b);
+	data.WriteCell(moveParent);
+	data.WriteFloat(heightOffset);
 	data.WriteCell(playersNum);
 
 	for (int i; i < playersNum; i++)
@@ -79,19 +83,22 @@ void Translate_PointMessageMultiplayer(DataPack data)
 	int entity = data.ReadCell();
 	int flags = data.ReadCell();
 	float coord[3];
-	
+
 	coord[0] = data.ReadFloat();
 	coord[1] = data.ReadFloat();
 	coord[2] = data.ReadFloat();
-	
+
 	float radius = data.ReadFloat();
-	
+
 	char fontName[64];
 	data.ReadString(fontName, sizeof(fontName));
 
 	int r = data.ReadCell();
 	int g = data.ReadCell();
 	int b = data.ReadCell();
+
+	int moveParent = data.ReadCell();
+	float heightOffset = data.ReadFloat();
 
 	int playersNum = data.ReadCell();
 
@@ -115,7 +122,7 @@ void Translate_PointMessageMultiplayer(DataPack data)
 
 		Handle msg = StartMessageOne("PointMessage", client, USERMSG_BLOCKHOOKS);
 		BfWrite bf = UserMessageToBfWrite(msg);
-		
+
 		bf.WriteString(didTranslate ? translated : original);
 		bf.WriteShort(entity);
 		bf.WriteShort(flags);
@@ -125,7 +132,9 @@ void Translate_PointMessageMultiplayer(DataPack data)
 		bf.WriteByte(r);
 		bf.WriteByte(g);
 		bf.WriteByte(b);
-		
+		bf.WriteShort(moveParent);
+		bf.WriteFloat(heightOffset);
+
 		EndMessage();
 	}
 }

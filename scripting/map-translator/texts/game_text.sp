@@ -1,6 +1,7 @@
 
 Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
 {
+	// Ignore texts that weren't shown by CGameText::Display, if we can
 	if (gameTextDetour && g_ActiveGameText == -1) {
 		return Plugin_Continue;
 	}
@@ -15,7 +16,7 @@ Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playe
 	int a1 = msg.ReadByte();
 	int r2 = msg.ReadByte();
 	int g2 = msg.ReadByte();
-	int b2 = msg.ReadByte();	
+	int b2 = msg.ReadByte();
 	int a2 = msg.ReadByte();
 	float fadeIn = msg.ReadFloat();
 	float fadeOut = msg.ReadFloat();
@@ -30,15 +31,15 @@ Action UserMsg_HudMsg(UserMsg msg_id, BfRead msg, const int[] players, int playe
 	static char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
 
-	if (!MO_TranslationPhraseExists(md5)) {
-
-		if (gameTextDetour) {
+	if (!MO_TranslationPhraseExists(md5))
+	{
+		if (gameTextDetour && cvRunTimeLearn.BoolValue) {
 			LearnNewText(text);
 		}
-		
+
 		return Plugin_Continue;
 	}
-	
+
 	DataPack data = new DataPack();
 
 	data.WriteCell(channel);

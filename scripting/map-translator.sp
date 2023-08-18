@@ -4,6 +4,7 @@
 #include <sourcemod>
 #include <dhooks>
 
+#define DEBUG 1
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN
 #define MAX_KEYHINT_LEN MAX_USERMSG_LEN - 1
@@ -20,7 +21,7 @@
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
 
-#define PLUGIN_VERSION "1.3.14"
+#define PLUGIN_VERSION "1.4.13"
 
 #define PREFIX "[Map Translator] "
 
@@ -39,6 +40,8 @@ int g_Game = GAME_UNKNOWN;
 #include "map-translator/ent-lump-parser.sp"
 #include "map-translator/detours.sp"
 #include "map-translator/md5.sp"
+
+ConVar cvRunTimeLearn;
 
 #include "map-translator/texts/point_message_multiplayer.sp"
 #include "map-translator/texts/env_hudhint.sp"
@@ -183,7 +186,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	TryEnableDetours();
 	AddCommandListener(Command_ReloadTranslations, "sm_reload_translations");
 
 	char path[PLATFORM_MAX_PATH];
@@ -193,6 +195,8 @@ public void OnPluginStart()
 	} else if (StrEqual(path, "nmrih")) {
 		g_Game = GAME_NMRIH;
 	}
+
+	TryEnableDetours(); // Must always be after g_Game is computed
 
 	Parser_OnPluginStart();
 
@@ -215,15 +219,22 @@ public void OnPluginStart()
 	cvIgnoreNumerical = CreateConVar("mt_ignore_numerical", "1",
 		"Don't translate or learn fully numerical messages such as codes, countdowns, etc.");
 
-	cvTargetLangs = CreateConVar("mt_autolearn_langs", "",
+	cvTargetLangs = CreateConVar("mt_autolearn_langs", "en",
 		"Space-separated list of language entries to include in auto generated translation files");
 
 	cvDefaultLang = CreateConVar("mt_fallback_lang", "en",
 		"Clients whose language is not translated will see messages in this language");
 
+	cvRunTimeLearn = CreateConVar("mt_extended_learning", "0",
+		"Whether the game will learn text entities that have been modified during gameplay. " ...
+		"This can improve detection on maps with VScript, but it can also increase memory usage " ...
+		"and the size of the generated translation file"
+	);
+
 	if (g_Game == GAME_NMRIH)
 	{
-		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Backwards compat
+		AutoExecConfig(true, "plugin.nmrih-map-translator"); // Bcompat
+
 		HookUserMessage(GetUserMessageId("ObjectiveNotify"), UserMsg_ObjectiveNotifyOrUpdate, true);
 		HookUserMessage(GetUserMessageId("ObjectiveUpdate"), UserMsg_ObjectiveNotifyOrUpdate, true);
 		HookUserMessage(GetUserMessageId("PointMessage"), UserMsg_PointMessageMultiplayer, true);
@@ -232,7 +243,6 @@ public void OnPluginStart()
 	else
 	{
 		AutoExecConfig(true, "plugin.map-translator");
-
 		if (g_Game == GAME_ZPS)
 		{
 			HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
@@ -432,12 +442,15 @@ void FlushQueue(const char[] path)
 	int count = 0;
 	char buffer[MAX_USERMSG_LEN], md5[MAX_MD5_LEN];
 
+	int numLangs = 0;
+
 	while (!g_ExportQueue.Empty)
 	{
+		g_ExportQueue.PopString(buffer, sizeof(buffer));
+
 		if (IsNumericalString(buffer) && cvIgnoreNumerical.BoolValue)
 			continue;
 
-		g_ExportQueue.PopString(buffer, sizeof(buffer));
 		Crypt_MD5(buffer, md5, sizeof(md5));
 
 		kv.JumpToKey(md5, true);
@@ -453,15 +466,26 @@ void FlushQueue(const char[] path)
 				kv.GoBack();
 			}
 			else
+			{
 				kv.SetString(langCodes[i], buffer);
+			}
+
+			numLangs++;
 		}
 
 		count++;
 		kv.GoBack();
 	}
 
-	kv.Rewind();
-	kv.ExportToFile(path);
+	if (numLangs == 0 && count > 0)
+	{
+		LogMessage("Found %d texts to translate but mt_autolearn_langs contains no valid language codes", count, numLangs);
+	}
+	else
+	{
+		kv.Rewind();
+		kv.ExportToFile(path);
+	}
 
 	g_ExportQueue.Clear();
 	delete kv;
@@ -504,8 +528,13 @@ void StrToLower(char[] str)
 
 void LearnNewText(const char[] text)
 {
+	#if DEBUG
+		PrintToServer("LearnNewText: \"%s\"", text);
+	#endif
+
 	char md5[MAX_MD5_LEN];
 	Crypt_MD5(text, md5, sizeof(md5));
+
 	g_Translations.SetValue(md5, INVALID_HANDLE);
 	g_ExportQueue.PushString(text);
 }

@@ -1,5 +1,6 @@
 Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int playersNum, bool reliable, bool init)
 {
+	// Ignore texts that weren't shown by CEnvHudHint::InputShowHudHint, if we can
 	if (hudHintDetour && g_ActiveHudHint == -1) {
 		return Plugin_Continue;
 	}
@@ -12,14 +13,14 @@ Action UserMsg_KeyHintText(UserMsg msg, BfRead bf, const int[] players, int play
 	}
 
 	static char md5[MAX_MD5_LEN];
-
 	Crypt_MD5(text, md5, sizeof(md5));
 
 	if (!MO_TranslationPhraseExists(md5)) {
 
-		if (hudHintDetour) {
+		if (hudHintDetour && cvRunTimeLearn.BoolValue) {
 			LearnNewText(text);
 		}
+
 		return Plugin_Continue;
 	}
 
