@@ -4,7 +4,7 @@
 #include <sourcemod>
 #include <dhooks>
 
-#define DEBUG 1
+#define DEBUG 0
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN
 #define MAX_KEYHINT_LEN MAX_USERMSG_LEN - 1
