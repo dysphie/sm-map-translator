@@ -11,7 +11,6 @@ DynamicDetour hudHintDetour;
 
 void TryEnableDetours()
 {
-	PrintToServer("TryEnableDetours");
 	GameData gamedata = new GameData("map-translator.games");
 	if (!gamedata)
 	{
@@ -25,13 +24,10 @@ void TryEnableDetours()
 	hudHintDetour = RegMessageDetour(gamedata, "CEnvHudHint::InputShowHudHint",
 		Detour_HudHintShowPre, Detour_HudHintShowPost, "env_hudhint");
 
-	PrintToServer("game is %d", g_Game);
 	if (g_Game == GAME_NMRIH)
 	{
 		pointTextDetour = RegMessageDetour(gamedata, "CPointMessageMultiplayer::SendMessage",
 			Detour_PointMessageMpPre, Detour_PointMessageMpPost, "point_message_multiplayer");
-
-		PrintToServer("pointTextDetour after detour: %d", pointTextDetour);
 
 		hudHintDetour = RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint",
 			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
