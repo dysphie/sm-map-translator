@@ -4,10 +4,12 @@ Translates map texts via translation files, allowing players to see messages in 
 
 The following texts are supported:
 
-- [game_text](https://developer.valvesoftware.com/wiki/Game_text)
-- [env_hudhint](https://developer.valvesoftware.com/wiki/Env_hudhint)
-- Objectives (**NMRiH** and **ZPS** only)
-- point_message_multiplayer (**NMRiH** only)
+- [ANY] [game_text](https://developer.valvesoftware.com/wiki/Game_text)
+- [ANY] [env_hudhint](https://developer.valvesoftware.com/wiki/Env_hudhint)
+- [ZPS] Objective text
+- [NMRiH] Objective text
+- [NMRiH] point_message_multiplayer
+- [TF2] [game_text_tf](https://developer.valvesoftware.com/wiki/Game_text_tf)
 
 
 
