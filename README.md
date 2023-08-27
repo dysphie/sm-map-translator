@@ -1,3 +1,6 @@
+
+![4150650 (1)](https://github.com/dysphie/sm-map-translator/assets/11559683/11b2fcea-0a83-42cd-93ac-848407288f47)
+
 # [SM] Map Translator
 
 Translates map texts via translation files, allowing players to see messages in their preferred language. 
