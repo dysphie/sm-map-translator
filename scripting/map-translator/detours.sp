@@ -3,11 +3,13 @@ int g_ActiveInstructor = -1;
 int g_ActivePointText = -1;
 int g_ActiveHudHint = -1;
 int g_ActiveGameText = -1;
+int g_ActiveGameTextTf = -1;
 
 DynamicDetour instructorDetour;
 DynamicDetour pointTextDetour;
 DynamicDetour gameTextDetour;
 DynamicDetour hudHintDetour;
+DynamicDetour gameTextTfDetour;
 
 void TryEnableDetours()
 {
@@ -31,6 +33,11 @@ void TryEnableDetours()
 
 		hudHintDetour = RegMessageDetour(gamedata, "CEnvInstructorHint::InputShowHint",
 			Detour_InstructorHintShowPre, Detour_InstructorHintShowPost, "env_instructor_hint");
+	}
+	else if (g_Game == GAME_TF2)
+	{
+		gameTextTfDetour = RegMessageDetour(gamedata, "CTFHudNotify::Display",
+			Detour_HudNotifyDisplayPre, Detour_HudNotifyDisplayPost, "game_text_tf");
 	}
 
 	delete gamedata;
@@ -96,5 +103,17 @@ MRESReturn Detour_InstructorHintShowPre(int instructor)
 MRESReturn Detour_InstructorHintShowPost(int instructor)
 {
 	g_ActiveInstructor = -1;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_HudNotifyDisplayPre(int gametextTf)
+{
+	g_ActiveGameTextTf = gametextTf;
+	return MRES_Ignored;
+}
+
+MRESReturn Detour_HudNotifyDisplayPost(int gametextTf)
+{
+	g_ActiveGameTextTf = -1;
 	return MRES_Ignored;
 }

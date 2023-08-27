@@ -4,6 +4,8 @@
 #include <sourcemod>
 #include <dhooks>
 
+// TODO: Don't append USERMSG_RELIABLE to all messages, look at 'reliable' param
+
 #define DEBUG 0
 #define MAX_USERMSG_LEN 255
 #define MAX_OBJNOTIFY_LEN MAX_USERMSG_LEN
@@ -20,8 +22,9 @@
 #define GAME_UNKNOWN 0
 #define GAME_NMRIH 1
 #define GAME_ZPS 2
+#define GAME_TF2 3
 
-#define PLUGIN_VERSION "1.4.13"
+#define PLUGIN_VERSION "1.4.14"
 
 #define PREFIX "[Map Translator] "
 
@@ -49,6 +52,7 @@ ConVar cvRunTimeLearn;
 #include "map-translator/texts/env_instructor_hint.sp"
 #include "map-translator/texts/nmrih_objective.sp"
 #include "map-translator/texts/zps_objective.sp"
+#include "map-translator/texts/game_text_tf.sp"
 
 ConVar cvIgnoreNumerical;
 ConVar cvTargetLangs;
@@ -190,9 +194,17 @@ public void OnPluginStart()
 
 	char path[PLATFORM_MAX_PATH];
 	GetGameFolderName(path, sizeof(path));
-	if (StrEqual(path, "zps")) {
+
+	if (GetEngineVersion() == Engine_TF2)
+	{
+		g_Game = GAME_TF2;
+	}
+	else if (StrEqual(path, "zps"))
+	{
 		g_Game = GAME_ZPS;
-	} else if (StrEqual(path, "nmrih")) {
+	}
+	else if (StrEqual(path, "nmrih"))
+	{
 		g_Game = GAME_NMRIH;
 	}
 
@@ -246,6 +258,10 @@ public void OnPluginStart()
 		if (g_Game == GAME_ZPS)
 		{
 			HookUserMessage(GetUserMessageId("ObjectiveState"), UserMsg_ObjectiveState, true);
+		}
+		else if (g_Game == GAME_TF2)
+		{
+			HookUserMessage(GetUserMessageId("HudNotifyCustom"), UserMsg_HudNotifyCustom, true);
 		}
 	}
 
