@@ -69,7 +69,7 @@ They're stored in `addons/sourcemod/translations/_maps`
 	```
 	
 
-## Helper Command
+## Commands
 
 | Command                | Description                                           | Required Flags      |
 |------------------------|-------------------------------------------------------|----------------------|
