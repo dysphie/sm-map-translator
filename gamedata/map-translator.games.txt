@@ -72,7 +72,7 @@
 			"CGameText::Display"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x57\xF6\x83\x04\x01\x00\x00\x01"
+				"windows"	"\x55\x8B\xEC\x53\x8B\xD9\x57\xF6\x83\x00\x01\x00\x00\x01"
 				"linux"		"@_ZN9CGameText7DisplayEP11CBaseEntity"
 			}
 
@@ -86,8 +86,8 @@
 			"CPointMessageMultiplayer::SendMessage"
 			{
 				"library"	"server"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x54\xB8\x01\x00\x00\x00\x53\x56\x8B\xF1\x57\x33\xFF"
-				"linux"		"@_ZN24CPointMessageMultiplayer11SendMessageEP11CBasePlayer"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x4C\xB8\x01\x00\x00\x00\x53\x56\x8B\xF1\x57\x33\xFF"
+				"linux"		"@_ZN24CPointMessageMultiplayer11SendMessageEPK11CBasePlayer"
 			}
 
 			"CEnvInstructorHint::InputShowHint"

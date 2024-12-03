@@ -24,7 +24,7 @@
 #define GAME_ZPS 2
 #define GAME_TF2 3
 
-#define PLUGIN_VERSION "1.4.14"
+#define PLUGIN_VERSION "1.4.15"
 
 #define PREFIX "[Map Translator] "
 
