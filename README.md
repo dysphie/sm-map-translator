@@ -3,9 +3,10 @@
 
 # [SM] Map Translator
 
-Translates map texts via translation files, allowing players to see messages in their preferred language. 
+Provides a way to translate map text through config files, allowing players to view messages in their steam language.  
+Note that the plugin **does not automatically translate content**, it only offers a framework for manual translations.
 
-The following texts are supported:
+The following text entities are supported:
 
 - [ANY] [game_text](https://developer.valvesoftware.com/wiki/Game_text)
 - [ANY] [env_hudhint](https://developer.valvesoftware.com/wiki/Env_hudhint)
@@ -13,9 +14,6 @@ The following texts are supported:
 - [NMRiH] Objective text
 - [NMRiH] point_message_multiplayer
 - [TF2] [game_text_tf](https://developer.valvesoftware.com/wiki/Game_text_tf)
-
-
-
 
 
 ## Installation
